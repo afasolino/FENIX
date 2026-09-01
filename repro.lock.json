@@ -35,6 +35,13 @@
     "tp1_executor_workaround": "mp",
     "upstream_uniproc_fix_commit": "95dc96d1d012a25ff5c3823a1e77197c8dae4654",
     "ple_offload_head_seen_2026_09_01": "d5002fb009bc30c990355695ab6d6c19a16ef12d",
-    "direct_uva_status_seen_2026_09_01": "open_draft"
+    "direct_uva_status_seen_2026_09_01": "open_draft",
+    "execution_backend": "podman_cdi",
+    "project_local_oci_store": ".runtime/podman/storage",
+    "cdi_device": "nvidia.com/gpu=all",
+    "built_runtime_image": "fenix-qwen38:locked",
+    "built_image_smoke_required_before_model_fetch": true,
+    "instrumented_runtime_copy": ".runtime/instrumented/qwen38",
+    "project_local_runtime_decision": "docs/decisions/0003-project-local-podman-cdi.md"
   }
 }

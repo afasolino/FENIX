@@ -19,3 +19,5 @@ traces/processed/*.feather
 .vscode/
 .idea/
 .DS_Store
+
+.runtime/

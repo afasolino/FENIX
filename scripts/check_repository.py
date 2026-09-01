@@ -5,22 +5,25 @@ from __future__ import annotations
 import argparse
 import compileall
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 
 MAX_TRACKABLE_FILE_BYTES = 10 * 1024 * 1024
-IGNORED_TOP_LEVEL = {".git", ".venv", "external"}
+IGNORED_TOP_LEVEL = {".git", ".venv", ".runtime", "external"}
 
 
 def repository_files(root: Path) -> list[Path]:
-    return [
-        path
-        for path in root.rglob("*")
-        if path.is_file()
-        and not any(part in IGNORED_TOP_LEVEL for part in path.relative_to(root).parts)
-    ]
+    files: list[Path] = []
+    for directory, dirnames, filenames in os.walk(root):
+        directory_path = Path(directory)
+        if directory_path == root:
+            dirnames[:] = [name for name in dirnames if name not in IGNORED_TOP_LEVEL]
+        for filename in filenames:
+            files.append(directory_path / filename)
+    return files
 
 
 def validate_json(files: list[Path]) -> list[str]:
@@ -47,6 +50,10 @@ def validate_methodology(root: Path) -> list[str]:
         root / "repro.lock.json",
         root / "requirements-analysis.lock.txt",
         root / "scripts/__init__.py",
+        root / "docs/decisions/0003-project-local-podman-cdi.md",
+        root / "qualification/podman_runtime.py",
+        root / "scripts/fenix_podman.py",
+        root / "scripts/smoke_runtime_image.py",
     )
     for path in required:
         if not path.exists():

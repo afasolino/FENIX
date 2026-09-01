@@ -304,91 +304,138 @@ def _parse_gpu_rows(result: CommandResult) -> list[dict[str, object]]:
 
 
 def inspect_host_environment(
-    config: dict[str, Any],
-) -> dict[str, object]:
-    """Assess only prerequisites for the configured execution lane."""
-
-    target = config["target"]
-    execution = config["execution"]
-
-    gpu_result = run_command(
-        [
-            "nvidia-smi",
-            "--query-gpu=index,name,compute_cap,memory.total,driver_version",
-            "--format=csv,noheader,nounits",
-        ]
-    )
-    gpus = _parse_gpu_rows(gpu_result)
-
-    host_failures: list[str] = []
-
-    if platform.system() != target["operating_system"]:
-        host_failures.append(
-            f"operating_system={platform.system()}"
-        )
-    if platform.machine() != target["machine"]:
-        host_failures.append(f"machine={platform.machine()}")
-
-    if len(gpus) != int(target["gpu_count"]):
-        host_failures.append(f"gpu_count={len(gpus)}")
-    elif gpus:
-        gpu = gpus[0]
-        if target["gpu_name_contains"] not in str(gpu["name"]):
-            host_failures.append(f"gpu_name={gpu['name']}")
-        if float(gpu["compute_capability"]) < float(
-            target["minimum_compute_capability"]
-        ):
-            host_failures.append(
-                f"compute_capability={gpu['compute_capability']}"
-            )
-
-    docker = run_command(["docker", "--context", "default", "info"])
-    if execution["backend"] == "docker" and not docker.ok:
-        host_failures.append("docker_default_context_unavailable")
-
-    nvidia_container_cli = run_command(
-        ["nvidia-container-cli", "--version"]
-    )
-    if (
-        execution.get("require_nvidia_container_cli")
-        and not nvidia_container_cli.ok
-    ):
-        host_failures.append("nvidia_container_cli_unavailable")
-
-    return {
-        "platform": {
-            "system": platform.system(),
-            "machine": platform.machine(),
-        },
-        "gpus": gpus,
-        "gpu_query": gpu_result.as_dict(),
-        "docker_default_info": docker.as_dict(),
-        "nvidia_container_cli": nvidia_container_cli.as_dict(),
-        "passed": not host_failures,
-        "failures": host_failures,
-    }
-
-
-def qualify(
     repository_root: Path,
     config: dict[str, Any],
 ) -> dict[str, object]:
-    """Return a source-only qualification report for the configured lane."""
+    from qualification.podman_runtime import podman_command, podman_paths
 
+    target = config["target"]
+    execution = config["execution"]
+    gpu_result = run_command([
+        "nvidia-smi",
+        "--query-gpu=index,name,compute_cap,memory.total,driver_version",
+        "--format=csv,noheader,nounits",
+    ])
+    gpus = _parse_gpu_rows(gpu_result)
+    failures: list[str] = []
+
+    if platform.system() != target["operating_system"]:
+        failures.append(f"operating_system={platform.system()}")
+    if platform.machine() != target["machine"]:
+        failures.append(f"machine={platform.machine()}")
+    if len(gpus) != int(target["gpu_count"]):
+        failures.append(f"gpu_count={len(gpus)}")
+    elif gpus:
+        gpu = gpus[0]
+        if target["gpu_name_contains"] not in str(gpu["name"]):
+            failures.append(f"gpu_name={gpu['name']}")
+        if float(gpu["compute_capability"]) < float(target["minimum_compute_capability"]):
+            failures.append(f"compute_capability={gpu['compute_capability']}")
+
+    podman = run_command(["podman", "--version"])
+    if not podman.ok:
+        failures.append("podman_unavailable")
+    fuse = run_command(["fuse-overlayfs", "--version"])
+    if not fuse.ok:
+        failures.append("fuse_overlayfs_unavailable")
+    cdi = run_command(["nvidia-ctk", "cdi", "list"])
+    if not cdi.ok or str(execution["cdi_device"]) not in cdi.stdout:
+        failures.append("nvidia_cdi_device_unavailable")
+    nvc = run_command(["nvidia-container-cli", "--version"])
+    if execution.get("require_nvidia_container_cli") and not nvc.ok:
+        failures.append("nvidia_container_cli_unavailable")
+
+    local_info = run_command(
+        podman_command(
+            repository_root,
+            "info",
+            "--format",
+            "GraphDriver={{.Store.GraphDriverName}}\\nGraphRoot={{.Store.GraphRoot}}\\nRunRoot={{.Store.RunRoot}}",
+        )
+    )
+    paths = podman_paths(repository_root)
+    if not local_info.ok:
+        failures.append("project_local_podman_store_unavailable")
+    else:
+        if f"GraphRoot={paths.storage}" not in local_info.stdout:
+            failures.append("podman_graph_root_not_project_local")
+        if f"RunRoot={paths.run}" not in local_info.stdout:
+            failures.append("podman_run_root_not_project_local")
+
+    return {
+        "platform": {"system": platform.system(), "machine": platform.machine()},
+        "gpus": gpus,
+        "gpu_query": gpu_result.as_dict(),
+        "podman": podman.as_dict(),
+        "fuse_overlayfs": fuse.as_dict(),
+        "nvidia_cdi": cdi.as_dict(),
+        "nvidia_container_cli": nvc.as_dict(),
+        "project_local_podman_info": local_info.as_dict(),
+        "project_local_podman_paths": {
+            "storage": str(paths.storage),
+            "run": str(paths.run),
+            "tmp": str(paths.tmp),
+        },
+        "passed": not failures,
+        "failures": failures,
+    }
+
+
+def inspect_image_smoke_report(repository_root: Path, config: dict[str, Any]) -> dict[str, object]:
+    relative = Path(config["execution"]["image_smoke_report"])
+    path = repository_root / relative
+    if not path.is_file():
+        return {"path": str(relative), "passed": False, "failures": ["image_smoke_report_missing"]}
+
+    try:
+        report = json.loads(path.read_text())
+    except Exception as exc:
+        return {"path": str(relative), "passed": False, "failures": [f"image_smoke_report_invalid:{exc}"]}
+
+    failures: list[str] = []
+    if report.get("schema_version") != 1:
+        failures.append("image_smoke_schema_mismatch")
+    if report.get("lane_id") != config["lane_id"]:
+        failures.append("image_smoke_lane_mismatch")
+    if report.get("runtime_source_revision") != config["runtime"]["revision"]:
+        failures.append("image_smoke_runtime_revision_mismatch")
+    if report.get("base_container_image") != config["runtime"]["container_image"]:
+        failures.append("image_smoke_base_image_mismatch")
+    if report.get("image") != config["execution"]["runtime_image"]:
+        failures.append("image_smoke_runtime_image_mismatch")
+    if report.get("passed") is not True:
+        failures.append("image_smoke_not_passed")
+
+    observed = report.get("observed")
+    if not isinstance(observed, dict):
+        failures.append("image_smoke_observed_payload_missing")
+    else:
+        if observed.get("cuda_available") is not True:
+            failures.append("image_smoke_cuda_unavailable")
+        if config["target"]["gpu_name_contains"] not in str(observed.get("device", "")):
+            failures.append("image_smoke_gpu_mismatch")
+        if observed.get("sum") != 523776.0:
+            failures.append("image_smoke_cuda_calculation_mismatch")
+
+    return {"path": str(relative), "report": report, "passed": not failures, "failures": failures}
+
+
+def qualify(repository_root: Path, config: dict[str, Any]) -> dict[str, object]:
     checkout = repository_root / config["runtime"]["checkout"]
     source = inspect_runtime_source(checkout, config)
-    host = inspect_host_environment(config)
+    host = inspect_host_environment(repository_root, config)
+    image_smoke = inspect_image_smoke_report(repository_root, config)
 
     if not source["passed"]:
         status = SOURCE_INCOMPATIBLE
-    elif not host["passed"]:
+    elif not host["passed"] or not image_smoke["passed"]:
         status = ENVIRONMENT_BLOCKED
     else:
         status = READY_FOR_MODEL_FETCH
 
     return {
-        "schema_version": 1,
-        "qualification_kind": "source_and_environment",
+        "schema_version": 2,
+        "qualification_kind": "source_environment_and_built_image",
         "runtime_qualified": False,
         "lane_id": config["lane_id"],
         "campaign_base_commit": config["campaign_base_commit"],
@@ -396,11 +443,10 @@ def qualify(
         "model_fetch_allowed": status == READY_FOR_MODEL_FETCH,
         "source": source,
         "host": host,
+        "image_smoke": image_smoke,
         "tp1_policy": {
             "tensor_parallel_size": 1,
-            "distributed_executor_backend": config["execution"][
-                "tp1_distributed_executor_backend"
-            ],
+            "distributed_executor_backend": config["execution"]["tp1_distributed_executor_backend"],
             "reason": config["execution"]["tp1_reason"],
             "does_not_establish_runtime_qualification": True,
         },

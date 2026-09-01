@@ -67,11 +67,14 @@ def build_command(
     )
 
     command = [
-        "docker",
+        sys.executable,
+        "-m",
+        "scripts.fenix_podman",
         "run",
         "--rm",
-        "--gpus",
-        "all",
+        "--security-opt=label=disable",
+        "--device",
+        "nvidia.com/gpu=all",
         "--ipc",
         "host",
         "--cap-add",
