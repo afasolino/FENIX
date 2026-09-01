@@ -1,0 +1,7 @@
+numpy>=2.0,<3
+pandas>=2.2,<3
+pyarrow>=17,<30
+matplotlib>=3.9,<4
+psutil>=6,<9
+requests>=2.32,<3
+pytest>=8.3,<9

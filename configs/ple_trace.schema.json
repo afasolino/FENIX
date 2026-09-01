@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FENIX PLE trace record",
+  "type": "object",
+  "required": [
+    "request_id",
+    "token_position",
+    "phase",
+    "ple_head",
+    "physical_row_id",
+    "bytes",
+    "address_known_ns",
+    "consumption_ns",
+    "concurrency"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "step_id": {
+      "type": "integer"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "token_position": {
+      "type": "integer"
+    },
+    "phase": {
+      "enum": [
+        "prefill",
+        "decode",
+        "speculative_verify",
+        "unknown"
+      ]
+    },
+    "ple_head": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "physical_row_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "address_known_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "consumption_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ngram_token_ids": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    }
+  },
+  "additionalProperties": true
+}

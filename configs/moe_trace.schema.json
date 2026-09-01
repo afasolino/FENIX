@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FENIX MoE trace record",
+  "type": "object",
+  "required": [
+    "run_id",
+    "layer",
+    "selected_expert_ids",
+    "concurrency",
+    "timestamp_ns"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "step_id": {
+      "type": "integer"
+    },
+    "layer": {
+      "type": "string"
+    },
+    "selected_expert_ids": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "cache_hit": {
+      "type": "array",
+      "items": {
+        "type": "boolean"
+      }
+    },
+    "transfer_expert_ids": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "transfer_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "resident_expert_ids": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp_ns": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true
+}

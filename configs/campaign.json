@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "strategy": {
+    "name": "literature_grounded_local_falsification",
+    "decision_record": "docs/decisions/0001-literature-grounded-local-falsification.md",
+    "evidence_policy": "docs/evidence_policy.md"
+  },
+  "model": {
+    "ngram_size": 3,
+    "heads_per_ngram": 8,
+    "ngram_vocab_size_base": 20000000,
+    "unigram_vocab_size": 248320,
+    "eos_token_id": 248044,
+    "ple_dense_layer_id": 0,
+    "seed": 1234,
+    "ple_embed_dim": 2560,
+    "num_experts": 512,
+    "experts_per_token": 10,
+    "num_hidden_layers": 48
+  },
+  "experiments": {
+    "runtime_qualification": {
+      "warmup_requests": 3,
+      "measured_requests": 10,
+      "input_tokens": [
+        1024
+      ],
+      "output_tokens": 128,
+      "concurrency": [
+        1
+      ],
+      "temperature": 0.0,
+      "repetitions": 3
+    },
+    "trace_characterization": {
+      "seed": 20260901,
+      "requests_per_input_length": 20,
+      "input_tokens": [
+        128,
+        1024,
+        4096
+      ],
+      "output_tokens": 256,
+      "temperature": 0.0,
+      "exact_request_correlation_concurrency": [
+        1
+      ],
+      "aggregate_service_concurrency": [
+        2,
+        4
+      ],
+      "repetitions": 1
+    },
+    "capacity_tradeoff": {
+      "host_memory_budgets_gib": [
+        64,
+        96,
+        112
+      ],
+      "memory_placement_policy": "local_to_gpu_numa_node",
+      "baseline_placement": "ple_in_host_dram",
+      "counterfactual_placement": "ple_externalized",
+      "screen_with_trace_projection": true,
+      "trace_projection_can_establish_motivation": false,
+      "minimum_measured_repetitions": 3,
+      "measure_only_informative_screened_budgets": true,
+      "require_same_runtime": true,
+      "require_same_model_revision": true,
+      "require_same_hardware": true,
+      "require_same_workload": true
+    }
+  },
+  "trace_analysis": {
+    "ple_cache_capacities_gib": [
+      0.125,
+      0.25,
+      0.5,
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      48
+    ]
+  },
+  "motivation_gate": {
+    "primary_metric": "tpot_ms",
+    "max_externalized_to_baseline_tpot_ratio": 0.9,
+    "min_expert_storage_bytes_reduction": 0.2,
+    "bootstrap_samples": 10000,
+    "bootstrap_alpha": 0.05,
+    "require_bootstrap_difference_upper_bound_below_zero": true
+  }
+}
