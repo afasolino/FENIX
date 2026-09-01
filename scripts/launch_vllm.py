@@ -35,6 +35,8 @@ def build_environment(
         "VLLM_WNA16_STATIC_HOT_CACHE_MAX_TOKENS": "16",
         "FENIX_TRACE": "1" if trace_enabled else "0",
         "FENIX_TRACE_DIR": "/fenix-traces",
+        "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        "VLLM_PLE_OFFLOAD_READY_TIMEOUT": "1200",
     }
 
     ranking = runtime_directory / "configs/static_hot_cache_rankings.json"
@@ -57,6 +59,8 @@ def build_command(
     hot_experts: int,
     max_model_len: int,
     max_num_seqs: int,
+    max_num_batched_tokens: int,
+    kv_cache_memory_bytes: int,
     trace_enabled: bool,
 ) -> tuple[dict[str, str], list[str]]:
     tensor_parallel_size = len(gpu_ids)
@@ -65,6 +69,7 @@ def build_command(
         trace_enabled,
         runtime_directory,
     )
+    environment["CUDA_VISIBLE_DEVICES"] = ",".join(gpu_ids)
 
     command = [
         sys.executable,
@@ -75,6 +80,8 @@ def build_command(
         "--security-opt=label=disable",
         "--device",
         "nvidia.com/gpu=all",
+        "--entrypoint",
+        "vllm",
         "--ipc",
         "host",
         "--cap-add",
@@ -97,7 +104,6 @@ def build_command(
         command.extend(["-e", f"{key}={value}"])
 
     serve = [
-        "vllm",
         "serve",
         "/model",
         "--served-model-name",
@@ -108,6 +114,8 @@ def build_command(
         str(port),
         "--tensor-parallel-size",
         str(tensor_parallel_size),
+        "--moe-backend",
+        "humming",
         "--dtype",
         "bfloat16",
         "--language-model-only",
@@ -125,7 +133,17 @@ def build_command(
         str(max_model_len),
         "--max-num-seqs",
         str(max_num_seqs),
+        "--max-num-batched-tokens",
+        str(max_num_batched_tokens),
+        "--kv-cache-dtype",
+        "auto",
+        "--kv-cache-memory-bytes",
+        str(kv_cache_memory_bytes),
         "--enable-chunked-prefill",
+        "--mamba-cache-mode",
+        "align",
+        "--compilation-config",
+        '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY"}',
         "--no-async-scheduling",
         "--disable-custom-all-reduce",
         "--trust-remote-code",
@@ -155,8 +173,10 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--cpu-offload-gb", type=float, required=True)
     parser.add_argument("--hot-experts", type=int, required=True)
-    parser.add_argument("--max-model-len", type=int, default=32768)
+    parser.add_argument("--max-model-len", type=int, default=8192)
     parser.add_argument("--max-num-seqs", type=int, default=1)
+    parser.add_argument("--max-num-batched-tokens", type=int, default=2048)
+    parser.add_argument("--kv-cache-memory-bytes", type=int, default=1073741824)
     parser.add_argument("--trace", action="store_true")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
@@ -183,6 +203,8 @@ def main() -> int:
         hot_experts=args.hot_experts,
         max_model_len=args.max_model_len,
         max_num_seqs=args.max_num_seqs,
+        max_num_batched_tokens=args.max_num_batched_tokens,
+        kv_cache_memory_bytes=args.kv_cache_memory_bytes,
         trace_enabled=args.trace,
     )
 
