@@ -1,40 +1,195 @@
 #!/usr/bin/env python3
+"""Construct or execute the pinned FENIX vLLM container launch."""
+
 from __future__ import annotations
-import argparse,json,shlex,subprocess,sys
+
+import argparse
+import json
+import shlex
+import subprocess
+import sys
 from pathlib import Path
 
-def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument("--model-dir",required=True);ap.add_argument("--gpus",default="0")
-    ap.add_argument("--port",type=int,default=8000);ap.add_argument("--cpu-offload-gb",type=float,required=True)
-    ap.add_argument("--hot-experts",type=int,required=True);ap.add_argument("--max-model-len",type=int,default=32768)
-    ap.add_argument("--max-num-seqs",type=int,default=1);ap.add_argument("--trace",action="store_true")
-    ap.add_argument("--execute",action="store_true");a=ap.parse_args()
-    model=Path(a.model_dir).resolve()
-    if not (model/"model.safetensors.index.json").exists():
-        print("checkpoint index missing",file=sys.stderr);return 2
-    gpu_ids=[x.strip() for x in a.gpus.split(",") if x.strip()];tp=len(gpu_ids)
-    env={"CUDA_VISIBLE_DEVICES":",".join(gpu_ids),"VLLM_PLE_CPU_OFFLOAD":"1",
-         "VLLM_WNA16_DYNAMIC_LRU":"1","VLLM_WNA16_MIXED_VMM_HOT_CACHE":"1",
-         "VLLM_WNA16_STATIC_HOT_CACHE_SIZE":str(a.hot_experts),
-         "VLLM_WNA16_STATIC_HOT_CACHE_MAX_TOKENS":"16",
-         "FENIX_TRACE":"1" if a.trace else "0","FENIX_TRACE_DIR":"/fenix-traces"}
-    ranking=Path("external/runtime/qwen38/configs/static_hot_cache_rankings.json").resolve()
-    if ranking.exists():env["VLLM_WNA16_STATIC_HOT_CACHE_FILE"]="/runtime/configs/static_hot_cache_rankings.json"
-    cmd=["docker","run","--rm","--gpus","all","--ipc","host","--cap-add","SYS_PTRACE",
-         "--ulimit","memlock=-1","--ulimit","stack=67108864",
-         "-p",f"127.0.0.1:{a.port}:{a.port}",
-         "-v",f"{model}:/model:ro","-v",f"{Path('external/runtime/qwen38').resolve()}:/runtime:ro",
-         "-v",f"{Path('traces/raw').resolve()}:/fenix-traces"]
-    for k,v in env.items():cmd += ["-e",f"{k}={v}"]
-    serve=["vllm","serve","/model","--served-model-name","qwen3.8-flash-next","--host","0.0.0.0",
-           "--port",str(a.port),"--tensor-parallel-size",str(tp),"--dtype","bfloat16",
-           "--language-model-only","--load-format","safetensors","--safetensors-load-strategy","lazy",
-           "--offload-backend","uva","--cpu-offload-gb",str(a.cpu_offload_gb),"--cpu-offload-params","experts",
-           "--max-model-len",str(a.max_model_len),"--max-num-seqs",str(a.max_num_seqs),
-           "--enable-chunked-prefill","--no-async-scheduling","--disable-custom-all-reduce","--trust-remote-code"]
-    if tp>1:serve += ["--enable-expert-parallel","--all2all-backend","allgather_reducescatter"]
-    cmd += ["fenix-qwen38:locked"]+serve
-    print(json.dumps(env,indent=2));print(shlex.join(cmd))
-    return subprocess.call(cmd) if a.execute else 0
-if __name__=="__main__":raise SystemExit(main())
+
+IMAGE = "fenix-qwen38:locked"
+SERVED_MODEL_NAME = "qwen3.8-flash-next"
+
+
+def parse_gpu_ids(raw: str) -> list[str]:
+    gpu_ids = [value.strip() for value in raw.split(",") if value.strip()]
+    if not gpu_ids:
+        raise argparse.ArgumentTypeError("at least one GPU ID is required")
+    return gpu_ids
+
+
+def build_environment(
+    hot_experts: int,
+    trace_enabled: bool,
+    runtime_directory: Path,
+) -> dict[str, str]:
+    environment = {
+        "VLLM_PLE_CPU_OFFLOAD": "1",
+        "VLLM_WNA16_DYNAMIC_LRU": "1",
+        "VLLM_WNA16_MIXED_VMM_HOT_CACHE": "1",
+        "VLLM_WNA16_STATIC_HOT_CACHE_SIZE": str(hot_experts),
+        "VLLM_WNA16_STATIC_HOT_CACHE_MAX_TOKENS": "16",
+        "FENIX_TRACE": "1" if trace_enabled else "0",
+        "FENIX_TRACE_DIR": "/fenix-traces",
+    }
+
+    ranking = runtime_directory / "configs/static_hot_cache_rankings.json"
+    if ranking.exists():
+        environment["VLLM_WNA16_STATIC_HOT_CACHE_FILE"] = (
+            "/runtime/configs/static_hot_cache_rankings.json"
+        )
+
+    return environment
+
+
+def build_command(
+    *,
+    model_directory: Path,
+    runtime_directory: Path,
+    trace_directory: Path,
+    gpu_ids: list[str],
+    port: int,
+    cpu_offload_gib: float,
+    hot_experts: int,
+    max_model_len: int,
+    max_num_seqs: int,
+    trace_enabled: bool,
+) -> tuple[dict[str, str], list[str]]:
+    tensor_parallel_size = len(gpu_ids)
+    environment = build_environment(
+        hot_experts,
+        trace_enabled,
+        runtime_directory,
+    )
+
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--gpus",
+        "all",
+        "--ipc",
+        "host",
+        "--cap-add",
+        "SYS_PTRACE",
+        "--ulimit",
+        "memlock=-1",
+        "--ulimit",
+        "stack=67108864",
+        "-p",
+        f"127.0.0.1:{port}:{port}",
+        "-v",
+        f"{model_directory}:/model:ro",
+        "-v",
+        f"{runtime_directory}:/runtime:ro",
+        "-v",
+        f"{trace_directory}:/fenix-traces",
+    ]
+
+    for key, value in environment.items():
+        command.extend(["-e", f"{key}={value}"])
+
+    serve = [
+        "vllm",
+        "serve",
+        "/model",
+        "--served-model-name",
+        SERVED_MODEL_NAME,
+        "--host",
+        "0.0.0.0",
+        "--port",
+        str(port),
+        "--tensor-parallel-size",
+        str(tensor_parallel_size),
+        "--dtype",
+        "bfloat16",
+        "--language-model-only",
+        "--load-format",
+        "safetensors",
+        "--safetensors-load-strategy",
+        "lazy",
+        "--offload-backend",
+        "uva",
+        "--cpu-offload-gb",
+        str(cpu_offload_gib),
+        "--cpu-offload-params",
+        "experts",
+        "--max-model-len",
+        str(max_model_len),
+        "--max-num-seqs",
+        str(max_num_seqs),
+        "--enable-chunked-prefill",
+        "--no-async-scheduling",
+        "--disable-custom-all-reduce",
+        "--trust-remote-code",
+    ]
+
+    if tensor_parallel_size == 1:
+        # The pinned preview image predates the upstream uniproc PLE startup
+        # fix. Force the path on which PLE worker spawn/readiness is wired.
+        serve.extend(["--distributed-executor-backend", "mp"])
+    else:
+        serve.extend(
+            [
+                "--enable-expert-parallel",
+                "--all2all-backend",
+                "allgather_reducescatter",
+            ]
+        )
+
+    command.extend([IMAGE, *serve])
+    return environment, command
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--gpus", type=parse_gpu_ids, default=["0"])
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--cpu-offload-gb", type=float, required=True)
+    parser.add_argument("--hot-experts", type=int, required=True)
+    parser.add_argument("--max-model-len", type=int, default=32768)
+    parser.add_argument("--max-num-seqs", type=int, default=1)
+    parser.add_argument("--trace", action="store_true")
+    parser.add_argument("--execute", action="store_true")
+    args = parser.parse_args()
+
+    root = Path.cwd().resolve()
+    model_directory = args.model_dir.resolve()
+    runtime_directory = (root / "external/runtime/qwen38").resolve()
+    trace_directory = (root / "traces/raw").resolve()
+
+    if not (model_directory / "model.safetensors.index.json").exists():
+        print("checkpoint index is missing", file=sys.stderr)
+        return 2
+    if not (runtime_directory / ".git").is_dir():
+        print("pinned runtime checkout is missing", file=sys.stderr)
+        return 2
+
+    environment, command = build_command(
+        model_directory=model_directory,
+        runtime_directory=runtime_directory,
+        trace_directory=trace_directory,
+        gpu_ids=args.gpus,
+        port=args.port,
+        cpu_offload_gib=args.cpu_offload_gb,
+        hot_experts=args.hot_experts,
+        max_model_len=args.max_model_len,
+        max_num_seqs=args.max_num_seqs,
+        trace_enabled=args.trace,
+    )
+
+    print(json.dumps(environment, indent=2))
+    print(shlex.join(command))
+
+    if not args.execute:
+        return 0
+    return subprocess.call(command)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

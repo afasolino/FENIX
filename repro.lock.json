@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "created_utc": "2026-09-01",
   "primary_lane": {
     "model_repo": "albucino/Qwen3.8-Flash-Next-W4A16-FP8PLE",
@@ -27,5 +27,14 @@
     "sglang_model_support_pr": 36497,
     "sglang_model_support_head_seen_2026_09_01": "78c5024e9d9f589dcb4deb7f4ba4fb23f7e85385",
     "sglang_nvme_ple_pr": 36567
+  },
+  "runtime_qualification": {
+    "decision_record": "docs/decisions/0002-runtime-lane-qualification.md",
+    "lane_config": "configs/runtime_lane.json",
+    "tp1_issue": 53960,
+    "tp1_executor_workaround": "mp",
+    "upstream_uniproc_fix_commit": "95dc96d1d012a25ff5c3823a1e77197c8dae4654",
+    "ple_offload_head_seen_2026_09_01": "d5002fb009bc30c990355695ab6d6c19a16ef12d",
+    "direct_uva_status_seen_2026_09_01": "open_draft"
   }
 }

@@ -84,15 +84,17 @@ qualified on the target system before performance claims are made.
 
 1. Capture preflight evidence.
 2. Freeze the literature/source ledger and experiment configuration.
-3. Qualify one mature Qwen3.8-Flash-Next runtime path.
-4. Collect exact PLE and expert traces.
-5. Verify PLE addresses independently of the serving runtime.
-6. Run locality analysis.
-7. Use the trace-derived capacity model only to screen informative host-memory
+3. Fetch and source-qualify the pinned runtime lane without model weights.
+4. Acquire the pinned model only after the runtime-lane gate passes.
+5. Qualify one mature Qwen3.8-Flash-Next runtime path on the target host.
+6. Collect exact PLE and expert traces.
+7. Verify PLE addresses independently of the serving runtime.
+8. Run locality analysis.
+9. Use the trace-derived capacity model only to screen informative host-memory
    budgets.
-8. Measure the capacity tradeoff on the same model/runtime/hardware/workload.
-9. Run `analysis/evaluate_motivation.py`.
-10. Proceed to hardware architecture only if the predeclared gate passes.
+10. Measure the capacity tradeoff on the same model/runtime/hardware/workload.
+11. Run `analysis/evaluate_motivation.py`.
+12. Proceed to hardware architecture only if the predeclared gate passes.
 
 At repository initialization, no same-endpoint capacity-tradeoff measurements
 exist. The verdict is therefore `INCONCLUSIVE`.
@@ -114,3 +116,30 @@ Before committing a campaign change, run:
 
 Analysis modules that import other FENIX analysis code should be invoked from
 the repository root with `python -m analysis.<module>`.
+
+## Runtime-lane gate
+
+Runtime source and model acquisition are intentionally separate.
+
+Both direct-script and module invocation are supported. The documented form is:
+
+```bash
+python -m scripts.fetch_runtime
+python -m scripts.qualify_runtime
+```
+
+The equivalent direct-script forms are regression-tested as well:
+
+```bash
+python scripts/fetch_runtime.py
+python scripts/qualify_runtime.py
+```
+
+The source-only gate writes an ignored report to
+`results/raw/runtime_qualification/report.json`. A large model download is
+blocked unless that report reaches `READY_FOR_MODEL_FETCH`.
+
+The TP=1 launcher forces `--distributed-executor-backend mp` for the pinned
+preview image because that image predates the upstream PLE uniprocess-executor
+initialization fix. This is a documented compatibility condition, not a local
+vLLM modification. See ADR 0002.

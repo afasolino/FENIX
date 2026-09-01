@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "lane_id": "qwen38-community-vllm-w4a16-fp8ple",
+  "campaign_base_commit": "9d436e409c809ade645d12e4b3826a9ce1c73fcb",
+  "runtime": {
+    "repository": "https://github.com/DominikBucko/qwen38-flash-next-2x3090.git",
+    "revision": "7b5f0465db90fc49d6324904f48ad995ebdcb62f",
+    "checkout": "external/runtime/qwen38",
+    "reported_vllm_version": "0.1.dev20073+g8e685d198",
+    "container_image": "vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8"
+  },
+  "model": {
+    "repository": "albucino/Qwen3.8-Flash-Next-W4A16-FP8PLE",
+    "revision": "ef554143369a706525336f6b42a09094835dc077",
+    "checkout": "external/models/qwen38-flash-next-w4a16-fp8ple",
+    "published_tensor_payload_bytes": 124750778874
+  },
+  "target": {
+    "operating_system": "Linux",
+    "machine": "x86_64",
+    "gpu_count": 1,
+    "gpu_name_contains": "RTX A6000",
+    "minimum_compute_capability": 8.0
+  },
+  "execution": {
+    "backend": "docker",
+    "require_nvidia_container_cli": true,
+    "tp1_distributed_executor_backend": "mp",
+    "tp1_reason": "Pinned preview image predates the upstream uniproc PLE initialization fix."
+  },
+  "known_upstream_state": {
+    "vllm_tp1_issue": 53960,
+    "uniproc_fix_commit": "95dc96d1d012a25ff5c3823a1e77197c8dae4654",
+    "ple_offload_pr": 53899,
+    "ple_offload_head_seen_2026_09_01": "d5002fb009bc30c990355695ab6d6c19a16ef12d",
+    "direct_uva_ple_pr": 54371,
+    "direct_uva_ple_head_seen_2026_09_01": "905219234b0698b1f1ec2ed756de7051b080fb1c"
+  },
+  "source_checks": [
+    {
+      "id": "ple_worker",
+      "path": "runtime/vllm-overlay/v1/ple_offload/worker.py",
+      "markers": [
+        "class PleOffloadWorker",
+        "tensor_parallel_size",
+        "num_workers"
+      ]
+    },
+    {
+      "id": "ple_gpu_worker",
+      "path": "runtime/vllm-overlay/v1/worker/gpu_worker.py",
+      "markers": [
+        "VLLM_PLE_CPU_OFFLOAD",
+        "spawn_ple_offload",
+        "tensor_parallel_size"
+      ]
+    },
+    {
+      "id": "ple_host_copy",
+      "path": "runtime/vllm-overlay/model_executor/layers/ple_offload_layer.py",
+      "markers": [
+        "cuMemcpyHtoDAsync",
+        "ple_offload_host_copy"
+      ]
+    },
+    {
+      "id": "expert_dynamic_lru",
+      "path": "runtime/vllm-overlay/model_executor/layers/quantization/compressed_tensors/compressed_tensors_moe/compressed_tensors_moe_wna16.py",
+      "markers": [
+        "VLLM_WNA16_DYNAMIC_LRU",
+        "VLLM_WNA16_MIXED_VMM_HOT_CACHE"
+      ]
+    },
+    {
+      "id": "expert_rankings",
+      "path": "configs/static_hot_cache_rankings.json",
+      "markers": []
+    },
+    {
+      "id": "runtime_lock",
+      "path": "repro.lock.json",
+      "markers": [
+        "ef554143369a706525336f6b42a09094835dc077",
+        "fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8"
+      ]
+    }
+  ]
+}

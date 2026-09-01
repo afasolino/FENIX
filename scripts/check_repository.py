@@ -41,9 +41,12 @@ def validate_methodology(root: Path) -> list[str]:
     required = (
         root / "docs/decisions/0001-literature-grounded-local-falsification.md",
         root / "docs/evidence_policy.md",
+        root / "docs/decisions/0002-runtime-lane-qualification.md",
+        root / "configs/runtime_lane.json",
         root / "configs/campaign.json",
         root / "repro.lock.json",
         root / "requirements-analysis.lock.txt",
+        root / "scripts/__init__.py",
     )
     for path in required:
         if not path.exists():
@@ -66,6 +69,20 @@ def validate_methodology(root: Path) -> list[str]:
             errors.append("initial verdict must remain INCONCLUSIVE")
         if verdict.get("proceed_to_hardware_architecture") is not False:
             errors.append("initial hardware-architecture gate must be closed")
+
+    legacy_fetch = root / "scripts/fetch_assets.sh"
+    if legacy_fetch.exists():
+        errors.append(
+            "legacy scripts/fetch_assets.sh couples runtime and model acquisition"
+        )
+
+    for required_script in (
+        "scripts/fetch_runtime.py",
+        "scripts/qualify_runtime.py",
+        "scripts/fetch_model.py",
+    ):
+        if not (root / required_script).exists():
+            errors.append(f"missing runtime-gate script: {required_script}")
 
     return errors
 
