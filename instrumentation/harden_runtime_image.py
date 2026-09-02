@@ -7,8 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import transformers
-import vllm
 
 
 CUSTOM_VLLM_ENV_VARS = (
@@ -186,6 +184,9 @@ print("FENIX_RUNTIME_HARDENING_OK")
 
 
 def main() -> None:
+    import transformers
+    import vllm
+
     vllm_root = Path(vllm.__file__).resolve().parent
     transformers_root = Path(transformers.__file__).resolve().parent
 
