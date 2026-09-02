@@ -14,14 +14,7 @@ main() {
     return 2
   fi
 
-  "$PY" instrumentation/prepare_runtime.py     --runtime external/runtime/qwen38     --output .runtime/instrumented/qwen38
-  PREPARE_RC="$?"
-  if [ "$PREPARE_RC" -ne 0 ]; then
-    echo "Transactional instrumentation preparation failed." >&2
-    return "$PREPARE_RC"
-  fi
-
-  "$PY" -m scripts.fenix_podman build     -t fenix-qwen38:locked     -f .runtime/instrumented/qwen38/docker/Dockerfile     .runtime/instrumented/qwen38
+  "$PY" -m scripts.build_runtime "$@"
 }
 
 main "$@"

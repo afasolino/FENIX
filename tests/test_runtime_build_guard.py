@@ -4,12 +4,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_build_runtime_stops_inside_main_function():
+def test_build_runtime_wrapper_delegates_policy_inside_main():
     text = (ROOT / "scripts/build_runtime.sh").read_text()
 
     assert "main() {" in text
     assert 'main "$@"' in text
-    assert 'return "$PREPARE_RC"' in text
+    assert '"$PY" -m scripts.build_runtime "$@"' in text
+    assert "PREPARE_RC" not in text
+    assert "fenix-qwen38:locked" not in text
+    assert "\nexit " not in text
 
 
 def test_moe_instrumentation_anchor_matches_pinned_launch_shape():
