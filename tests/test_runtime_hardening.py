@@ -7,6 +7,7 @@ from instrumentation.harden_runtime_image import (
     patch_env_registry,
     patch_qwen3vl_video_docstring,
     patch_rope_validation_config,
+    resolve_rope_config_targets,
 )
 
 
@@ -121,3 +122,102 @@ def test_qwen3vl_video_doc_patch(tmp_path: Path):
     text = path.read_text()
     assert "min_frames" in text
     assert "max_frames" in text
+
+
+def _write_qwen38_config(path: Path, *, include_qwen4: bool) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = (
+        "class Qwen3_8FlashNextTextConfig(object):\n"
+        "    pass\n"
+    )
+    if include_qwen4:
+        text += (
+            "\n"
+            "class Qwen4ExpTextConfig(Qwen3_8FlashNextTextConfig):\n"
+            "    pass\n"
+        )
+    path.write_text(text)
+
+
+def test_rope_target_resolution_supports_pinned_colocated_layout(
+    tmp_path: Path,
+):
+    qwen38 = (
+        tmp_path
+        / "models"
+        / "qwen3_8_flash_next"
+        / "config.py"
+    )
+    _write_qwen38_config(qwen38, include_qwen4=True)
+
+    assert resolve_rope_config_targets(tmp_path) == (
+        (qwen38, "Qwen3_8FlashNextTextConfig"),
+        (qwen38, "Qwen4ExpTextConfig"),
+    )
+
+
+def test_rope_target_resolution_supports_newer_split_layout(
+    tmp_path: Path,
+):
+    qwen38 = (
+        tmp_path
+        / "models"
+        / "qwen3_8_flash_next"
+        / "config.py"
+    )
+    _write_qwen38_config(qwen38, include_qwen4=False)
+
+    qwen4 = tmp_path / "models" / "qwen4_exp" / "config.py"
+    qwen4.parent.mkdir(parents=True, exist_ok=True)
+    qwen4.write_text(
+        "class Qwen4ExpTextConfig(object):\n"
+        "    pass\n"
+    )
+
+    assert resolve_rope_config_targets(tmp_path) == (
+        (qwen38, "Qwen3_8FlashNextTextConfig"),
+        (qwen4, "Qwen4ExpTextConfig"),
+    )
+
+
+def test_rope_target_resolution_fails_without_qwen4_class(
+    tmp_path: Path,
+):
+    qwen38 = (
+        tmp_path
+        / "models"
+        / "qwen3_8_flash_next"
+        / "config.py"
+    )
+    _write_qwen38_config(qwen38, include_qwen4=False)
+
+    with pytest.raises(RuntimeError, match="supported runtime layouts"):
+        resolve_rope_config_targets(tmp_path)
+
+
+def test_colocated_targets_patch_both_exact_classes(tmp_path: Path):
+    qwen38 = (
+        tmp_path
+        / "models"
+        / "qwen3_8_flash_next"
+        / "config.py"
+    )
+    _write_qwen38_config(qwen38, include_qwen4=True)
+
+    for path, class_name in resolve_rope_config_targets(tmp_path):
+        assert patch_rope_validation_config(path, class_name) is True
+
+    namespace = {}
+    exec(qwen38.read_text(), namespace)
+    expected = ROPE_VALIDATION_IGNORE_KEYS
+
+    assert frozenset(
+        namespace[
+            "Qwen3_8FlashNextTextConfig"
+        ].ignore_keys_at_rope_validation
+    ) == expected
+    assert frozenset(
+        namespace[
+            "Qwen4ExpTextConfig"
+        ].ignore_keys_at_rope_validation
+    ) == expected

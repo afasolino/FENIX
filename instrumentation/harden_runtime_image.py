@@ -82,6 +82,75 @@ def _class_assignment_value(
     return None
 
 
+
+def _top_level_class_names(path: Path) -> frozenset[str]:
+    """Return top-level class names from one Python module."""
+
+    if not path.is_file():
+        return frozenset()
+
+    tree = ast.parse(path.read_text(), filename=str(path))
+    return frozenset(
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+    )
+
+
+def resolve_rope_config_targets(
+    vllm_root: Path,
+) -> tuple[tuple[Path, str], ...]:
+    """Resolve Qwen3.8/Qwen4Exp config classes for the installed vLLM layout.
+
+    The pinned Qwen3.8 preview co-locates ``Qwen4ExpTextConfig`` in
+    ``models/qwen3_8_flash_next/config.py``. Newer vLLM versions move that
+    class to ``models/qwen4_exp/config.py``. FENIX supports both exact layouts
+    and fails closed if neither contains the expected Qwen4Exp class.
+    """
+
+    qwen38_path = (
+        vllm_root
+        / "models"
+        / "qwen3_8_flash_next"
+        / "config.py"
+    )
+    if not qwen38_path.is_file():
+        raise RuntimeError(
+            f"expected Qwen3.8 runtime config missing: {qwen38_path}"
+        )
+
+    qwen38_classes = _top_level_class_names(qwen38_path)
+    if "Qwen3_8FlashNextTextConfig" not in qwen38_classes:
+        raise RuntimeError(
+            "Qwen3_8FlashNextTextConfig declaration not found in "
+            f"{qwen38_path}"
+        )
+
+    targets: list[tuple[Path, str]] = [
+        (qwen38_path, "Qwen3_8FlashNextTextConfig")
+    ]
+
+    if "Qwen4ExpTextConfig" in qwen38_classes:
+        targets.append((qwen38_path, "Qwen4ExpTextConfig"))
+        return tuple(targets)
+
+    split_path = (
+        vllm_root
+        / "models"
+        / "qwen4_exp"
+        / "config.py"
+    )
+    split_classes = _top_level_class_names(split_path)
+    if "Qwen4ExpTextConfig" not in split_classes:
+        raise RuntimeError(
+            "Qwen4ExpTextConfig declaration not found in supported runtime "
+            f"layouts: {qwen38_path} or {split_path}"
+        )
+
+    targets.append((split_path, "Qwen4ExpTextConfig"))
+    return tuple(targets)
+
+
 def patch_rope_validation_config(path: Path, class_name: str) -> bool:
     """Add the FENIX MRoPE validation ignore set to one exact config class."""
 
@@ -189,7 +258,11 @@ expected = {"mrope_section", "mrope_interleaved"}
 from vllm.models.qwen3_8_flash_next.config import (
     Qwen3_8FlashNextTextConfig,
 )
-from vllm.models.qwen4_exp.config import Qwen4ExpTextConfig
+
+try:
+    from vllm.models.qwen3_8_flash_next.config import Qwen4ExpTextConfig
+except ImportError:
+    from vllm.models.qwen4_exp.config import Qwen4ExpTextConfig
 
 assert Qwen3_8FlashNextTextConfig.ignore_keys_at_rope_validation == expected
 assert Qwen4ExpTextConfig.ignore_keys_at_rope_validation == expected
@@ -240,18 +313,6 @@ def main() -> None:
     transformers_root = Path(transformers.__file__).resolve().parent
 
     envs_path = vllm_root / "envs.py"
-    qwen38_path = (
-        vllm_root
-        / "models"
-        / "qwen3_8_flash_next"
-        / "config.py"
-    )
-    qwen4_exp_path = (
-        vllm_root
-        / "models"
-        / "qwen4_exp"
-        / "config.py"
-    )
     video_path = (
         transformers_root
         / "models"
@@ -259,30 +320,18 @@ def main() -> None:
         / "video_processing_qwen3_vl.py"
     )
 
-    for path in (
-        envs_path,
-        qwen38_path,
-        qwen4_exp_path,
-        video_path,
-    ):
+    for path in (envs_path, video_path):
         if not path.is_file():
             raise RuntimeError(f"expected runtime file missing: {path}")
 
+    rope_targets = resolve_rope_config_targets(vllm_root)
+
     print("env registry patched:", patch_env_registry(envs_path))
-    print(
-        "Qwen3.8 RoPE config patched:",
-        patch_rope_validation_config(
-            qwen38_path,
-            "Qwen3_8FlashNextTextConfig",
-        ),
-    )
-    print(
-        "Qwen4Exp RoPE config patched:",
-        patch_rope_validation_config(
-            qwen4_exp_path,
-            "Qwen4ExpTextConfig",
-        ),
-    )
+    for path, class_name in rope_targets:
+        print(
+            f"{class_name} RoPE config patched:",
+            patch_rope_validation_config(path, class_name),
+        )
     print(
         "Qwen3-VL video docs patched:",
         patch_qwen3vl_video_docstring(video_path),
