@@ -14,6 +14,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from analysis.expert_locality import parse_layer_id
+
 
 ExpertKey = tuple[int, int]
 
@@ -38,7 +40,7 @@ def load_expert_sequence(trace_path: Path) -> list[ExpertKey]:
         if "layer" not in record:
             raise ValueError(f"{trace_path}:{line_number}: missing layer")
 
-        layer = int(record["layer"])
+        layer = parse_layer_id(record["layer"])
         for expert in record.get("selected_expert_ids", []):
             sequence.append((layer, int(expert)))
 

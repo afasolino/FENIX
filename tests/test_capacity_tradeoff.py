@@ -32,3 +32,16 @@ def test_externalized_ple_never_reduces_expert_capacity():
         externalized.expert_storage_bytes_per_selection
         <= baseline.expert_storage_bytes_per_selection
     )
+
+
+def test_runtime_layer_prefix_is_accepted():
+    from analysis.expert_locality import parse_layer_id
+
+    assert parse_layer_id(7) == 7
+    assert parse_layer_id("7") == 7
+    assert (
+        parse_layer_id(
+            "language_model.model.layers.23.mlp.experts"
+        )
+        == 23
+    )

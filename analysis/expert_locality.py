@@ -7,10 +7,28 @@ import argparse
 import collections
 import json
 import math
+import re
 from pathlib import Path
 from typing import Hashable, Sequence
 
 from analysis.ple_locality import exact_reuse_distances, logarithmic_histogram
+
+
+
+def parse_layer_id(value: object) -> int:
+    """Accept either an integer layer ID or a vLLM layer-name prefix."""
+    if isinstance(value, int):
+        return value
+
+    text = str(value)
+    if text.isdigit():
+        return int(text)
+
+    match = re.search(r"(?:^|\.)layers\.(\d+)(?:\.|$)", text)
+    if match is None:
+        raise ValueError(f"cannot extract transformer layer from {text!r}")
+
+    return int(match.group(1))
 
 
 def quantile(values: Sequence[int], probability: float) -> int | None:
@@ -39,7 +57,7 @@ def analyze_trace(trace_path: Path) -> dict[str, object]:
         if "layer" not in record:
             raise ValueError(f"{trace_path}:{line_number}: missing layer")
 
-        layer = int(record["layer"])
+        layer = parse_layer_id(record["layer"])
         selected = [int(expert) for expert in record.get("selected_expert_ids", [])]
         keys = [(layer, expert) for expert in selected]
 
