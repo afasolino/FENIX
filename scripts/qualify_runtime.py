@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the source-only FENIX runtime-lane qualification gate."""
+"""Run the FENIX runtime-lane qualification gate."""
 
 from __future__ import annotations
 

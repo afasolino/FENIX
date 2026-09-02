@@ -30,7 +30,24 @@
     "runtime_image": "fenix-qwen38:locked",
     "image_smoke_report": "results/raw/runtime_qualification/image_smoke.json",
     "tp1_distributed_executor_backend": "mp",
-    "tp1_reason": "Pinned preview image predates the upstream uniproc PLE initialization fix."
+    "tp1_reason": "Pinned preview image predates the upstream uniproc PLE initialization fix.",
+    "runtime_evidence_report": "results/qualification/runtime_first_boot.json",
+    "runtime_evidence_tested_commit": "eed3e61c8cfbd6a020297b3df5de7ee50c2b015a",
+    "runtime_evidence_profile": {
+      "tensor_parallel_size": 1,
+      "distributed_executor_backend": "mp",
+      "cpu_offload_gb": 40.0,
+      "hot_experts": 0,
+      "max_model_len": 8192,
+      "max_num_seqs": 1,
+      "max_num_batched_tokens": 2048,
+      "kv_cache_memory_bytes": 1073741824,
+      "ple_cpu_offload": true,
+      "moe_backend": "humming",
+      "offload_backend": "uva",
+      "mtp_enabled": false,
+      "fenix_trace_enabled": false
+    }
   },
   "known_upstream_state": {
     "vllm_tp1_issue": 53960,

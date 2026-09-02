@@ -14,6 +14,7 @@ from typing import Any
 SOURCE_INCOMPATIBLE = "SOURCE_INCOMPATIBLE"
 ENVIRONMENT_BLOCKED = "ENVIRONMENT_BLOCKED"
 READY_FOR_MODEL_FETCH = "READY_FOR_MODEL_FETCH"
+RUNTIME_QUALIFIED = "RUNTIME_QUALIFIED"
 
 
 @dataclass(frozen=True)
@@ -420,35 +421,163 @@ def inspect_image_smoke_report(repository_root: Path, config: dict[str, Any]) ->
     return {"path": str(relative), "report": report, "passed": not failures, "failures": failures}
 
 
+
+def inspect_runtime_evidence(
+    repository_root: Path,
+    config: dict[str, Any],
+) -> dict[str, object]:
+    """Validate tracked real-model evidence against the pinned lane."""
+
+    execution = config["execution"]
+    relative = Path(execution["runtime_evidence_report"])
+    path = repository_root / relative
+
+    if not path.is_file():
+        return {
+            "path": str(relative),
+            "passed": False,
+            "failures": ["runtime_evidence_report_missing"],
+        }
+
+    try:
+        report = json.loads(path.read_text())
+    except Exception as exc:
+        return {
+            "path": str(relative),
+            "passed": False,
+            "failures": [f"runtime_evidence_report_invalid:{exc}"],
+        }
+
+    failures: list[str] = []
+
+    if report.get("schema_version") != 1:
+        failures.append("runtime_evidence_schema_mismatch")
+    if report.get("qualification_kind") != "real_model_boot_and_generation":
+        failures.append("runtime_evidence_kind_mismatch")
+    if report.get("lane_id") != config["lane_id"]:
+        failures.append("runtime_evidence_lane_mismatch")
+    if report.get("tested_repository_commit") != execution[
+        "runtime_evidence_tested_commit"
+    ]:
+        failures.append("runtime_evidence_tested_commit_mismatch")
+    if report.get("runtime_revision") != config["runtime"]["revision"]:
+        failures.append("runtime_evidence_runtime_revision_mismatch")
+    if report.get("model_revision") != config["model"]["revision"]:
+        failures.append("runtime_evidence_model_revision_mismatch")
+    if report.get("runtime_image") != execution["runtime_image"]:
+        failures.append("runtime_evidence_image_mismatch")
+    if report.get("runtime_qualified") is not True:
+        failures.append("runtime_evidence_not_qualified")
+    if report.get("performance_qualified") is not False:
+        failures.append("runtime_evidence_performance_scope_mismatch")
+    if report.get("trace_qualified") is not False:
+        failures.append("runtime_evidence_trace_scope_mismatch")
+
+    checks = report.get("checks")
+    if not isinstance(checks, dict) or not checks:
+        failures.append("runtime_evidence_checks_missing")
+    elif not all(value is True for value in checks.values()):
+        failures.append("runtime_evidence_checks_not_all_passed")
+
+    expected = execution["runtime_evidence_profile"]
+
+    target = report.get("target")
+    if not isinstance(target, dict):
+        failures.append("runtime_evidence_target_missing")
+    else:
+        if target.get("tensor_parallel_size") != expected[
+            "tensor_parallel_size"
+        ]:
+            failures.append("runtime_evidence_tp_mismatch")
+        if target.get("distributed_executor_backend") != expected[
+            "distributed_executor_backend"
+        ]:
+            failures.append("runtime_evidence_executor_mismatch")
+
+    profile = report.get("boot_profile")
+    if not isinstance(profile, dict):
+        failures.append("runtime_evidence_profile_missing")
+    else:
+        for key, expected_value in expected.items():
+            if key in {
+                "tensor_parallel_size",
+                "distributed_executor_backend",
+            }:
+                continue
+
+            if profile.get(key) != expected_value:
+                failures.append(
+                    f"runtime_evidence_profile_mismatch:{key}"
+                )
+
+    return {
+        "path": str(relative),
+        "report": report,
+        "passed": not failures,
+        "failures": failures,
+    }
+
+
+
 def qualify(repository_root: Path, config: dict[str, Any]) -> dict[str, object]:
     checkout = repository_root / config["runtime"]["checkout"]
+
     source = inspect_runtime_source(checkout, config)
     host = inspect_host_environment(repository_root, config)
     image_smoke = inspect_image_smoke_report(repository_root, config)
+    runtime_evidence = inspect_runtime_evidence(repository_root, config)
 
     if not source["passed"]:
         status = SOURCE_INCOMPATIBLE
     elif not host["passed"] or not image_smoke["passed"]:
         status = ENVIRONMENT_BLOCKED
+    elif runtime_evidence["passed"]:
+        status = RUNTIME_QUALIFIED
     else:
         status = READY_FOR_MODEL_FETCH
 
+    evidence_report = runtime_evidence.get("report", {})
+    if not isinstance(evidence_report, dict):
+        evidence_report = {}
+
     return {
-        "schema_version": 2,
-        "qualification_kind": "source_environment_and_built_image",
-        "runtime_qualified": False,
+        "schema_version": 3,
+        "qualification_kind": (
+            "source_environment_built_image_and_real_model_boot"
+        ),
+        "runtime_qualified": status == RUNTIME_QUALIFIED,
         "lane_id": config["lane_id"],
         "campaign_base_commit": config["campaign_base_commit"],
         "status": status,
-        "model_fetch_allowed": status == READY_FOR_MODEL_FETCH,
+        "model_fetch_allowed": status in {
+            READY_FOR_MODEL_FETCH,
+            RUNTIME_QUALIFIED,
+        },
         "source": source,
         "host": host,
         "image_smoke": image_smoke,
+        "runtime_evidence": runtime_evidence,
+        "performance_qualified": False,
+        "semantic_smoke_qualified": (
+            bool(evidence_report.get("semantic_smoke_qualified"))
+            if runtime_evidence["passed"]
+            else False
+        ),
+        "trace_qualified": False,
         "tp1_policy": {
             "tensor_parallel_size": 1,
-            "distributed_executor_backend": config["execution"]["tp1_distributed_executor_backend"],
+            "distributed_executor_backend": config["execution"][
+                "tp1_distributed_executor_backend"
+            ],
             "reason": config["execution"]["tp1_reason"],
-            "does_not_establish_runtime_qualification": True,
+            "does_not_establish_runtime_qualification": (
+                status != RUNTIME_QUALIFIED
+            ),
+            "qualification_basis": (
+                "tracked measured real-model boot and generation certificate"
+                if status == RUNTIME_QUALIFIED
+                else "source/environment/image gate only"
+            ),
         },
         "known_upstream_state": config["known_upstream_state"],
     }
