@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "qualification_kind": "real_model_boot_and_generation",
+  "lane_id": "qwen38-community-vllm-w4a16-fp8ple",
+  "tested_repository_commit": "eed3e61c8cfbd6a020297b3df5de7ee50c2b015a",
+  "runtime_revision": "7b5f0465db90fc49d6324904f48ad995ebdcb62f",
+  "model_revision": "ef554143369a706525336f6b42a09094835dc077",
+  "runtime_image": "fenix-qwen38:locked",
+  "target": {
+    "gpu": "NVIDIA RTX A6000",
+    "tensor_parallel_size": 1,
+    "distributed_executor_backend": "mp"
+  },
+  "boot_profile": {
+    "cpu_offload_gb": 40.0,
+    "hot_experts": 0,
+    "max_model_len": 8192,
+    "max_num_seqs": 1,
+    "max_num_batched_tokens": 2048,
+    "kv_cache_memory_bytes": 1073741824,
+    "ple_cpu_offload": true,
+    "moe_backend": "humming",
+    "offload_backend": "uva",
+    "mtp_enabled": false,
+    "fenix_trace_enabled": false
+  },
+  "checks": {
+    "architecture_resolved": true,
+    "uva_offloader": true,
+    "humming_moe": true,
+    "ple_layer_discovered": true,
+    "ple_weights_verified": true,
+    "ple_worker_ready": true,
+    "expert_cpu_offload": true,
+    "server_ready": true,
+    "health_http_200": true,
+    "models_http_200": true,
+    "generation_http_200": true,
+    "models_response_valid": true,
+    "generation_response_valid": true
+  },
+  "runtime_qualified": true,
+  "performance_qualified": false,
+  "semantic_smoke_qualified": false,
+  "trace_qualified": false,
+  "observed_generation": {
+    "content": "We need to respond to user: \"Reply with exactly: FENIX_OK",
+    "finish_reason": "length",
+    "prompt_tokens": 60,
+    "completion_tokens": 16
+  },
+  "warnings": {
+    "recoverable_cuda_allocator_mapping_oom": true,
+    "jit_compilation_during_first_inference": true
+  },
+  "limitations": [
+    "This run establishes functional runtime feasibility only.",
+    "The host was not performance-isolated; throughput and latency from this run are not benchmark evidence.",
+    "Cold Triton JIT compilation occurred during the first inference.",
+    "The exact FENIX_OK semantic smoke did not pass because generation ended at the 16-token limit while producing meta/reasoning text.",
+    "FENIX tracing was disabled; no PLE or MoE trace is qualified here."
+  ],
+  "raw_artifacts": {
+    "server_log": {
+      "path": ".runtime/runtime_qualification/first_boot/server.log",
+      "bytes": 33119,
+      "sha256": "174ac287a44f8d38f800a3d2d7d1427c86158bd998fe48979e37b7a3fc3c4588"
+    },
+    "models_response": {
+      "path": ".runtime/runtime_qualification/first_boot/models.json",
+      "bytes": 458,
+      "sha256": "8e6a3b18efb612ea4f8a4a68cf9d22a04fd0f9a8a14c0c1c02db0f11fa9a04b0"
+    },
+    "inference_response": {
+      "path": ".runtime/runtime_qualification/first_boot/inference.json",
+      "bytes": 767,
+      "sha256": "850f00d58ec1bfa4d1ec6fb50d84bc085b52b6106b2e4b424d7209b9ba8f69ab"
+    },
+    "preflight": {
+      "path": ".runtime/runtime_qualification/first_boot/preflight.log",
+      "bytes": 3397,
+      "sha256": "60037021553b561cd87f246dfb709ff79860313724d3a6179c2758595f2c85db"
+    },
+    "postboot_resources": {
+      "path": ".runtime/runtime_qualification/first_boot/postboot-resources.log",
+      "bytes": 3690,
+      "sha256": "a88aeb408626cfe8fd8392a807caa704cfd73b21f9d586b0209b08a7a38e6658"
+    }
+  }
+}
