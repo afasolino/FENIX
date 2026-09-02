@@ -184,6 +184,22 @@ def build_command(
     return environment, command
 
 
+def emit_launch_preamble(
+    environment: dict[str, str],
+    command: list[str],
+    *,
+    stream=None,
+) -> None:
+    """Write and flush provenance before entering the long-running server."""
+
+    if stream is None:
+        stream = sys.stdout
+
+    stream.write(json.dumps(environment, indent=2) + "\n")
+    stream.write(shlex.join(command) + "\n")
+    stream.flush()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, required=True)
@@ -233,8 +249,7 @@ def main() -> int:
         expandable_segments=not args.disable_expandable_segments,
     )
 
-    print(json.dumps(environment, indent=2))
-    print(shlex.join(command))
+    emit_launch_preamble(environment, command)
 
     if not args.execute:
         return 0
