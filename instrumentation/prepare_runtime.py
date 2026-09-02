@@ -101,6 +101,47 @@ def main() -> int:
         shutil.rmtree(staging)
         return completed.returncode
 
+    hardener_source = Path(__file__).with_name(
+        "harden_runtime_image.py"
+    )
+    if not hardener_source.is_file():
+        shutil.rmtree(staging)
+        raise SystemExit(
+            f"missing runtime hardener: {hardener_source}"
+        )
+
+    hardener_target = staging / "runtime/fenix_harden_runtime_image.py"
+    shutil.copy2(hardener_source, hardener_target)
+
+    dockerfile = staging / "docker/Dockerfile"
+    docker_text = dockerfile.read_text()
+
+    docker_anchor = (
+        "RUN python3 /opt/qwen38/runtime/install_overlay.py "
+        "/opt/qwen38/runtime/vllm-overlay\n"
+    )
+    docker_replacement = (
+        docker_anchor
+        + "COPY runtime/fenix_harden_runtime_image.py "
+        "/opt/qwen38/runtime/fenix_harden_runtime_image.py\n"
+        + "RUN python3 "
+        "/opt/qwen38/runtime/fenix_harden_runtime_image.py\n"
+    )
+
+    if docker_text.count(docker_anchor) != 1:
+        shutil.rmtree(staging)
+        raise SystemExit(
+            "candidate Dockerfile overlay-install anchor mismatch"
+        )
+
+    dockerfile.write_text(
+        docker_text.replace(
+            docker_anchor,
+            docker_replacement,
+            1,
+        )
+    )
+
     instrumentation_manifest = staging / "fenix-instrumentation-manifest.json"
     if not instrumentation_manifest.is_file():
         shutil.rmtree(staging)

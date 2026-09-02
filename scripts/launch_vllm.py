@@ -26,6 +26,7 @@ def build_environment(
     hot_experts: int,
     trace_enabled: bool,
     runtime_directory: Path,
+    expandable_segments: bool = True,
 ) -> dict[str, str]:
     environment = {
         "VLLM_PLE_CPU_OFFLOAD": "1",
@@ -35,7 +36,11 @@ def build_environment(
         "VLLM_WNA16_STATIC_HOT_CACHE_MAX_TOKENS": "16",
         "FENIX_TRACE": "1" if trace_enabled else "0",
         "FENIX_TRACE_DIR": "/fenix-traces",
-        "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        "PYTORCH_CUDA_ALLOC_CONF": (
+            "expandable_segments:True"
+            if expandable_segments
+            else "expandable_segments:False"
+        ),
         "VLLM_PLE_OFFLOAD_READY_TIMEOUT": "1200",
     }
 
@@ -62,12 +67,15 @@ def build_command(
     max_num_batched_tokens: int,
     kv_cache_memory_bytes: int,
     trace_enabled: bool,
+    runtime_image: str = IMAGE,
+    expandable_segments: bool = True,
 ) -> tuple[dict[str, str], list[str]]:
     tensor_parallel_size = len(gpu_ids)
     environment = build_environment(
         hot_experts,
         trace_enabled,
         runtime_directory,
+        expandable_segments,
     )
     environment["CUDA_VISIBLE_DEVICES"] = ",".join(gpu_ids)
 
@@ -102,6 +110,12 @@ def build_command(
 
     for key, value in environment.items():
         command.extend(["-e", f"{key}={value}"])
+
+    compilation_config = (
+        '{"mode":0,"cudagraph_mode":"NONE"}'
+        if trace_enabled
+        else '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY"}'
+    )
 
     serve = [
         "serve",
@@ -143,9 +157,13 @@ def build_command(
         "--mamba-cache-mode",
         "align",
         "--compilation-config",
-        '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY"}',
+        compilation_config,
         "--no-async-scheduling",
         "--disable-custom-all-reduce",
+        "--generation-config",
+        "vllm",
+        "--reasoning-parser",
+        "qwen3",
         "--trust-remote-code",
     ]
 
@@ -162,7 +180,7 @@ def build_command(
             ]
         )
 
-    command.extend([IMAGE, *serve])
+    command.extend([runtime_image, *serve])
     return environment, command
 
 
@@ -178,6 +196,11 @@ def main() -> int:
     parser.add_argument("--max-num-batched-tokens", type=int, default=2048)
     parser.add_argument("--kv-cache-memory-bytes", type=int, default=1073741824)
     parser.add_argument("--trace", action="store_true")
+    parser.add_argument("--image", default=IMAGE)
+    parser.add_argument(
+        "--disable-expandable-segments",
+        action="store_true",
+    )
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
 
@@ -206,6 +229,8 @@ def main() -> int:
         max_num_batched_tokens=args.max_num_batched_tokens,
         kv_cache_memory_bytes=args.kv_cache_memory_bytes,
         trace_enabled=args.trace,
+        runtime_image=args.image,
+        expandable_segments=not args.disable_expandable_segments,
     )
 
     print(json.dumps(environment, indent=2))
