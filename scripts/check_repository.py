@@ -54,6 +54,13 @@ def validate_methodology(root: Path) -> list[str]:
         root / "qualification/podman_runtime.py",
         root / "scripts/fenix_podman.py",
         root / "scripts/smoke_runtime_image.py",
+        root / "docs/decisions/0005-trace-campaign-instrumentation.md",
+        root / "scripts/trace_contract.py",
+        root / "scripts/trace_capture.py",
+        root / "scripts/trace_case.py",
+        root / "scripts/trace_campaign.py",
+        root / "analysis/process_moe_trace.py",
+        root / "analysis/trace_characterization.py",
     )
     for path in required:
         if not path.exists():
@@ -68,6 +75,17 @@ def validate_methodology(root: Path) -> list[str]:
             errors.append("legacy host_dram_sweep configuration is still present")
         if "capacity_tradeoff" not in campaign.get("experiments", {}):
             errors.append("capacity_tradeoff experiment is missing")
+        trace = campaign.get("experiments", {}).get("trace_characterization", {})
+        if trace.get("workload_profile") != "trace_characterization_v1":
+            errors.append(
+                "trace_characterization workload_profile must be "
+                "trace_characterization_v1"
+            )
+        if trace.get("workload_corpus") != "configs/trace_prompt_corpus_v1.json":
+            errors.append(
+                "trace_characterization workload_corpus must be "
+                "configs/trace_prompt_corpus_v1.json"
+            )
 
     verdict_path = root / "results/processed/initial_verdict.json"
     if verdict_path.exists():

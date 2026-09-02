@@ -77,3 +77,29 @@ GPU utilization is never used as a byte-traffic estimator.
 - insufficient repetitions -> `INCONCLUSIVE`;
 - at least one informative budget passing all predeclared gates -> `SUPPORTED`;
 - sufficiently measured budgets with no passing point -> `FALSIFIED`.
+
+## Trace campaign execution
+
+`scripts/trace_campaign.py` owns execution of the versioned
+`trace_characterization` matrix. It constructs distinct deterministic prompts
+whose rendered chat-template length is revalidated against the running
+`/tokenize` endpoint. Prompt text, per-prompt SHA-256, the prompt-set SHA-256,
+model/runtime revisions, repository commit, container image ID, and exact raw
+trace byte windows are recorded with every case.
+
+The trace matrix is executed as separate cases for each predeclared input
+length and concurrency. Concurrency one is the only case class eligible for
+exact request correlation. Concurrency two and four retain isolated raw traces
+and client service timings as aggregate trace evidence; their client timings
+are never promoted to performance evidence.
+
+PLE and MoE runtime files are append-only shared streams. The runner records
+byte offsets immediately before and after each case and copies only complete
+JSONL records from that interval. Empty streams, partial records, shrinking
+files, client token-count mismatches, runtime errors, or provenance drift fail
+closed. A campaign-completeness check verifies the entire predeclared matrix
+and cross-case provenance before downstream screening.
+
+Capacity projections should derive expert slot bytes from explicit MoE transfer
+records and PLE host bytes from measured PLE row width plus the versioned model
+geometry. Manual size overrides are diagnostic inputs and are labeled as such.

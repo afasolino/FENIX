@@ -50,7 +50,9 @@
         2,
         4
       ],
-      "repetitions": 1
+      "repetitions": 1,
+      "workload_profile": "trace_characterization_v1",
+      "workload_corpus": "configs/trace_prompt_corpus_v1.json"
     },
     "capacity_tradeoff": {
       "host_memory_budgets_gib": [

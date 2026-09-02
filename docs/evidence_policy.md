@@ -68,3 +68,16 @@ measurement points. It cannot establish the motivation gate.
 | What PLE rows does Qwen3.8-Flash-Next access? | FENIX trace | Yes |
 | What experts does Qwen3.8-Flash-Next access? | FENIX trace | Yes |
 | Does PLE host-DRAM occupancy materially reduce useful expert residency? | FENIX capacity tradeoff | Yes |
+
+### `local_measured_trace`
+
+FENIX trace data collected on the target endpoint under a versioned trace
+workload. Trace instrumentation may perturb timing, so this class supports
+locality, residency, transfer, and request-correlation claims but never
+throughput or latency claims.
+
+### `local_measured_trace_analysis`
+
+Deterministic analysis derived only from `local_measured_trace` artifacts.
+It inherits the trace run's endpoint scope and cannot establish the motivation
+gate without the separate non-trace causal performance comparison.
