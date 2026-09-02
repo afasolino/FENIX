@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Run a fail-closed FENIX performance measurement.
+"""Run a fail-closed, campaign-conformant FENIX performance measurement.
 
-This orchestrator separates warmup from measured requests and emits a
-machine-readable evidence manifest. Use ``scripts.bench_openai`` directly for
-diagnostic or trace-mode client measurements; this command is intentionally
-strict and only succeeds when the result is eligible for performance evidence.
+This orchestrator separates warmup from measured requests, enforces the
+versioned workload contract, and emits a machine-readable evidence manifest.
+Use ``scripts.bench_openai`` directly for diagnostic or trace-mode client
+measurements; this command only succeeds when the result is eligible for
+performance evidence.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from scripts import bench_openai
+from scripts import bench_openai, workload_contract
 
 
 STARTUP_MARKER = "Application startup complete."
@@ -93,14 +94,12 @@ class MeasurementConfig:
     output: Path
     url: str
     model: str
-    prompt: str
-    max_tokens: int
-    temperature: float
-    concurrency: int
-    warmup_requests: int
-    measured_requests: int
     log_settle_ms: int
     runtime_lane: Path
+    campaign: Path
+    experiment: str
+    repetition_index: int
+    tokenize_url: str | None = None
 
 
 def utc_now() -> str:
@@ -187,6 +186,11 @@ def require_performance_server(server_log: Path) -> LaunchMetadata:
             "performance server must expose exactly FENIX_TRACE=0; "
             f"observed={launch.trace_values or 'missing'}"
         )
+    if len(launch.runtime_images) != 1:
+        failures.append(
+            "server log must identify exactly one FENIX runtime image; "
+            f"observed={launch.runtime_images or 'missing'}"
+        )
 
     if failures:
         raise PerformanceEvidenceError("; ".join(failures))
@@ -244,26 +248,35 @@ def load_runtime_lane(path: Path) -> dict[str, Any]:
 
 def _benchmark_namespace(
     config: MeasurementConfig,
+    contract: workload_contract.ExperimentContract,
+    prompt: str,
     requests: int,
 ) -> argparse.Namespace:
     return argparse.Namespace(
         url=config.url,
         model=config.model,
-        prompt=config.prompt,
-        max_tokens=config.max_tokens,
-        temperature=config.temperature,
-        concurrency=config.concurrency,
+        prompt=prompt,
+        max_tokens=contract.output_tokens,
+        temperature=contract.temperature,
+        concurrency=contract.concurrency,
         requests=requests,
     )
 
 
 def run_phase(
     config: MeasurementConfig,
+    contract: workload_contract.ExperimentContract,
+    prompt: str,
     requests: int,
     phase: str,
 ) -> tuple[list[dict[str, Any]], float]:
     results, wall_s = bench_openai.run_benchmark(
-        _benchmark_namespace(config, requests)
+        _benchmark_namespace(
+            config,
+            contract,
+            prompt,
+            requests,
+        )
     )
     annotated: list[dict[str, Any]] = []
     for record in results:
@@ -296,12 +309,26 @@ def _measured_timing_complete(
     return True
 
 
+def _workload_reason_ids(
+    mismatches: Sequence[Mapping[str, object]],
+) -> list[str]:
+    fields = sorted(
+        {
+            str(mismatch.get("field"))
+            for mismatch in mismatches
+            if mismatch.get("field")
+        }
+    )
+    return [f"workload:{field}_mismatch" for field in fields]
+
+
 def evaluate_eligibility(
     *,
     repository: RepositoryState,
     launch: LaunchMetadata,
     warmup_records: Sequence[Mapping[str, Any]],
     measured_records: Sequence[Mapping[str, Any]],
+    workload_mismatches: Sequence[Mapping[str, object]],
     contamination: Sequence[Mapping[str, Any]],
     log_window_valid: bool,
 ) -> tuple[bool, list[str]]:
@@ -319,6 +346,7 @@ def evaluate_eligibility(
         reasons.append("measured_requests_failed")
     if not _measured_timing_complete(measured_records):
         reasons.append("measured_timing_incomplete")
+    reasons.extend(_workload_reason_ids(workload_mismatches))
     if not log_window_valid:
         reasons.append("server_log_window_invalid")
     if contamination:
@@ -334,9 +362,19 @@ def _artifact_paths(output: Path) -> dict[str, Path]:
         "measured": output,
         "summary": Path(f"{output}.summary.json"),
         "warmup": Path(f"{output}.warmup.jsonl"),
+        "prompt": Path(f"{output}.prompt.txt"),
         "server_window": Path(f"{output}.server-window.log"),
         "evidence": Path(f"{output}.evidence.json"),
     }
+
+
+def _ensure_artifacts_absent(paths: Mapping[str, Path]) -> None:
+    existing = [str(path) for path in paths.values() if path.exists()]
+    if existing:
+        raise PerformanceEvidenceError(
+            "refusing to overwrite existing performance artifacts: "
+            + ", ".join(existing)
+        )
 
 
 def _artifact_hashes(paths: Mapping[str, Path]) -> dict[str, str]:
@@ -347,19 +385,72 @@ def _artifact_hashes(paths: Mapping[str, Path]) -> dict[str, str]:
     }
 
 
+def _workload_manifest(
+    *,
+    config: MeasurementConfig,
+    contract: workload_contract.ExperimentContract,
+    prepared: workload_contract.PreparedWorkload,
+) -> dict[str, Any]:
+    return {
+        "experiment": contract.experiment,
+        "workload_profile": contract.workload_profile,
+        "url": config.url,
+        "tokenize_url": prepared.tokenize_url,
+        "model": config.model,
+        "prompt_sha256": prepared.prompt_sha256,
+        "prompt_characters": len(prepared.prompt),
+        "preflight_prompt_tokens": prepared.prompt_tokens,
+        "server_max_model_len": prepared.max_model_len,
+        "expected_input_tokens": contract.input_tokens,
+        "expected_output_tokens": contract.output_tokens,
+        "temperature": contract.temperature,
+        "concurrency": contract.concurrency,
+        "warmup_requests": contract.warmup_requests,
+        "measured_requests": contract.measured_requests,
+        "repetition_index": config.repetition_index,
+        "required_repetitions": contract.repetitions,
+    }
+
+
+def _diagnostic_manifest(
+    *,
+    repository: RepositoryState,
+    runtime_lane: Mapping[str, Any],
+    launch: LaunchMetadata,
+    workload: Mapping[str, Any],
+    reasons: Sequence[str],
+    started_at: str,
+    paths: Mapping[str, Path],
+    workload_mismatches: Sequence[Mapping[str, object]],
+    warmup_wall_s: float | None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": 2,
+        "evidence_kind": "diagnostic_measurement",
+        "performance_eligible": False,
+        "eligibility_reasons": list(reasons),
+        "repository_commit": repository.commit,
+        "repository_clean": repository.clean,
+        "runtime_lane": dict(runtime_lane),
+        "launch": {
+            "trace_values": list(launch.trace_values),
+            "runtime_images": list(launch.runtime_images),
+        },
+        "workload": dict(workload),
+        "workload_mismatches": list(workload_mismatches),
+        "warmup_wall_s": warmup_wall_s,
+        "started_at_utc": started_at,
+        "finished_at_utc": utc_now(),
+        "artifacts_sha256": _artifact_hashes(paths),
+    }
+
+
 def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
-    if config.warmup_requests < 1:
-        raise PerformanceEvidenceError(
-            "performance measurements require at least one warmup request"
-        )
-    if config.measured_requests < 1:
-        raise PerformanceEvidenceError(
-            "performance measurements require at least one measured request"
-        )
-    if config.concurrency < 1:
-        raise PerformanceEvidenceError("concurrency must be >= 1")
     if config.log_settle_ms < 0:
         raise PerformanceEvidenceError("log_settle_ms must be >= 0")
+
+    paths = _artifact_paths(config.output)
+    _ensure_artifacts_absent(paths)
 
     repository = repository_state()
     if not repository.clean:
@@ -370,52 +461,72 @@ def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
 
     launch = require_performance_server(config.server_log)
     runtime_lane = load_runtime_lane(config.runtime_lane)
-    paths = _artifact_paths(config.output)
+
+    try:
+        contract = workload_contract.load_experiment_contract(
+            config.campaign,
+            config.experiment,
+        )
+        workload_contract.validate_repetition_index(
+            contract,
+            config.repetition_index,
+        )
+        prepared = workload_contract.prepare_workload(
+            contract=contract,
+            chat_url=config.url,
+            model=config.model,
+            tokenize_url=config.tokenize_url,
+        )
+    except workload_contract.WorkloadContractError as exc:
+        raise PerformanceEvidenceError(str(exc)) from exc
+
     started_at = utc_now()
+    atomic_write_text(paths["prompt"], prepared.prompt)
+    workload_manifest = _workload_manifest(
+        config=config,
+        contract=contract,
+        prepared=prepared,
+    )
 
     warmup_records, warmup_wall_s = run_phase(
         config,
-        config.warmup_requests,
+        contract,
+        prepared.prompt,
+        contract.warmup_requests,
         "warmup",
     )
     write_jsonl(paths["warmup"], warmup_records)
 
-    if not _successful(warmup_records):
-        evidence = {
-            "schema_version": 1,
-            "evidence_kind": "diagnostic_measurement",
-            "performance_eligible": False,
-            "eligibility_reasons": ["warmup_failed"],
-            "repository_commit": repository.commit,
-            "runtime_lane": runtime_lane,
-            "launch": {
-                "trace_values": list(launch.trace_values),
-                "runtime_images": list(launch.runtime_images),
-            },
-            "workload": {
-                "model": config.model,
-                "prompt_sha256": hashlib.sha256(
-                    config.prompt.encode()
-                ).hexdigest(),
-                "prompt_characters": len(config.prompt),
-                "max_tokens": config.max_tokens,
-                "temperature": config.temperature,
-                "concurrency": config.concurrency,
-                "warmup_requests": config.warmup_requests,
-                "measured_requests": config.measured_requests,
-            },
-            "warmup_wall_s": warmup_wall_s,
-            "started_at_utc": started_at,
-            "finished_at_utc": utc_now(),
-            "artifacts_sha256": _artifact_hashes(paths),
-        }
+    warmup_mismatches = workload_contract.record_token_mismatches(
+        warmup_records,
+        contract=contract,
+        phase="warmup",
+    )
+    if not _successful(warmup_records) or warmup_mismatches:
+        reasons = []
+        if not _successful(warmup_records):
+            reasons.append("warmup_failed")
+        reasons.extend(_workload_reason_ids(warmup_mismatches))
+        evidence = _diagnostic_manifest(
+            repository=repository,
+            runtime_lane=runtime_lane,
+            launch=launch,
+            workload=workload_manifest,
+            reasons=reasons,
+            started_at=started_at,
+            paths=paths,
+            workload_mismatches=warmup_mismatches,
+            warmup_wall_s=warmup_wall_s,
+        )
         write_json(paths["evidence"], evidence)
         return evidence, 3
 
     measured_log_start = config.server_log.stat().st_size
     measured_records, measured_wall_s = run_phase(
         config,
-        config.measured_requests,
+        contract,
+        prepared.prompt,
+        contract.measured_requests,
         "measured",
     )
 
@@ -435,12 +546,18 @@ def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
     )
     atomic_write_text(paths["server_window"], log_window)
 
+    measured_mismatches = workload_contract.record_token_mismatches(
+        measured_records,
+        contract=contract,
+        phase="measured",
+    )
     contamination = contamination_hits(log_window)
     eligible, reasons = evaluate_eligibility(
         repository=repository,
         launch=launch,
         warmup_records=warmup_records,
         measured_records=measured_records,
+        workload_mismatches=measured_mismatches,
         contamination=contamination,
         log_window_valid=log_window_valid,
     )
@@ -448,7 +565,7 @@ def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
     summary = bench_openai.summarize_results(
         measured_records,
         measured_wall_s,
-        config.concurrency,
+        contract.concurrency,
     )
     summary["run_class"] = "performance"
     summary["performance_eligible"] = eligible
@@ -463,7 +580,7 @@ def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
         "local_measured" if eligible else "diagnostic_measurement"
     )
     evidence = {
-        "schema_version": 1,
+        "schema_version": 2,
         "evidence_kind": evidence_kind,
         "performance_eligible": eligible,
         "eligibility_reasons": reasons,
@@ -476,19 +593,8 @@ def run_measurement(config: MeasurementConfig) -> tuple[dict[str, Any], int]:
             "runtime_images": list(launch.runtime_images),
             "server_log": str(config.server_log),
         },
-        "workload": {
-            "url": config.url,
-            "model": config.model,
-            "prompt_sha256": hashlib.sha256(
-                config.prompt.encode()
-            ).hexdigest(),
-            "prompt_characters": len(config.prompt),
-            "max_tokens": config.max_tokens,
-            "temperature": config.temperature,
-            "concurrency": config.concurrency,
-            "warmup_requests": config.warmup_requests,
-            "measured_requests": config.measured_requests,
-        },
+        "workload": workload_manifest,
+        "workload_mismatches": measured_mismatches,
         "timing": {
             "warmup_wall_s": warmup_wall_s,
             "measured_wall_s": measured_wall_s,
@@ -514,17 +620,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--url", default=bench_openai.DEFAULT_URL)
     parser.add_argument("--model", default=bench_openai.DEFAULT_MODEL)
-    parser.add_argument("--prompt", default=bench_openai.DEFAULT_PROMPT)
-    parser.add_argument("--max-tokens", type=int, default=128)
-    parser.add_argument("--temperature", type=float, default=0.0)
-    parser.add_argument("--concurrency", type=int, default=1)
-    parser.add_argument("--warmup-requests", type=int, default=3)
-    parser.add_argument("--measured-requests", type=int, default=10)
+    parser.add_argument("--tokenize-url")
     parser.add_argument("--log-settle-ms", type=int, default=250)
     parser.add_argument(
         "--runtime-lane",
         type=Path,
         default=Path("configs/runtime_lane.json"),
+    )
+    parser.add_argument(
+        "--campaign",
+        type=Path,
+        default=workload_contract.DEFAULT_CAMPAIGN,
+    )
+    parser.add_argument(
+        "--experiment",
+        default=workload_contract.DEFAULT_EXPERIMENT,
+    )
+    parser.add_argument(
+        "--repetition-index",
+        type=int,
+        required=True,
+        help="1-based repetition index within the predeclared campaign",
     )
     return parser
 
@@ -536,14 +652,12 @@ def main() -> int:
         output=args.out,
         url=args.url,
         model=args.model,
-        prompt=args.prompt,
-        max_tokens=args.max_tokens,
-        temperature=args.temperature,
-        concurrency=args.concurrency,
-        warmup_requests=args.warmup_requests,
-        measured_requests=args.measured_requests,
         log_settle_ms=args.log_settle_ms,
         runtime_lane=args.runtime_lane,
+        campaign=args.campaign,
+        experiment=args.experiment,
+        repetition_index=args.repetition_index,
+        tokenize_url=args.tokenize_url,
     )
 
     try:

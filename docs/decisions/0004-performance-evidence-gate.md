@@ -26,18 +26,32 @@ The command is fail-closed and requires:
 
 1. a clean FENIX Git worktree;
 2. a server log containing the startup-complete marker;
-3. an unambiguous `FENIX_TRACE=0` launch;
-4. at least one successful warmup request;
-5. successful measured requests with complete TTFT/E2E timing and TPOT when
-   at least two completion tokens are reported;
-6. a valid byte-bounded server-log window covering only the measured phase;
-7. no declared contamination marker in that measured log window.
+3. an unambiguous `FENIX_TRACE=0` launch and exactly one identifiable FENIX
+   runtime image tag;
+4. a supported workload profile declared in `configs/campaign.json`;
+5. a prompt whose rendered chat-template token count is verified through the
+   running server's `/tokenize` endpoint and exactly equals the predeclared
+   input-token count;
+6. an explicit 1-based repetition index within the campaign repetition policy;
+7. successful warmup requests whose observed prompt and completion token counts
+   exactly match the campaign contract;
+8. successful measured requests whose observed prompt/completion counts and
+   TTFT/E2E/TPOT timing exactly match the campaign endpoint;
+9. a valid byte-bounded server-log window covering only the measured phase;
+10. no declared contamination marker in that measured log window; and
+11. a fresh output artifact set so previous evidence cannot be overwritten.
 
-Warmup and measured request records are stored separately. The measured server
-log window is preserved as its own artifact. The evidence manifest records the
-FENIX commit, locked runtime/model revisions from `configs/runtime_lane.json`,
-runtime image names visible in the launch log, workload parameters, log byte
-offsets, contamination findings, and SHA-256 hashes of the generated artifacts.
+Warmup and measured request records are stored separately. The exact generated
+prompt and the measured server-log window are preserved as artifacts. The
+evidence manifest records the FENIX commit, locked runtime/model revisions from
+`configs/runtime_lane.json`, runtime image name, workload profile, preflight and
+observed token counts, repetition index, log byte offsets, contamination
+findings, and SHA-256 hashes of the generated artifacts.
+
+`python -m scripts.workload_contract` may be used independently to materialize
+and inspect the deterministic token-exact prompt. Performance promotion does
+not trust a locally estimated token count: it reuses the same contract code and
+asks the live runtime to tokenize the rendered chat request.
 
 Only a run whose manifest contains:
 

@@ -30,7 +30,8 @@
         1
       ],
       "temperature": 0.0,
-      "repetitions": 3
+      "repetitions": 3,
+      "workload_profile": "runtime_qualification_v1"
     },
     "trace_characterization": {
       "seed": 20260901,
