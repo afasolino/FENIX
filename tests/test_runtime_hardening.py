@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import pytest
+
 from instrumentation.harden_runtime_image import (
+    ROPE_VALIDATION_IGNORE_KEYS,
     patch_env_registry,
-    patch_qwen38_rope_config,
     patch_qwen3vl_video_docstring,
+    patch_rope_validation_config,
 )
 
 
@@ -20,23 +23,86 @@ def test_env_registration_is_idempotent(tmp_path: Path):
     ) == 1
 
 
-def test_qwen38_rope_validation_patch(tmp_path: Path):
+@pytest.mark.parametrize(
+    "class_name",
+    (
+        "Qwen3_8FlashNextTextConfig",
+        "Qwen4ExpTextConfig",
+    ),
+)
+def test_rope_validation_patch_is_class_scoped_and_idempotent(
+    tmp_path: Path,
+    class_name: str,
+):
     path = tmp_path / "config.py"
     path.write_text(
-        "class Qwen3_8FlashNextTextConfig(object):\n"
+        "class UnrelatedConfig(object):\n"
+        "    pass\n\n"
+        f"class {class_name}(object):\n"
         "    pass\n"
     )
 
-    assert patch_qwen38_rope_config(path) is True
+    assert patch_rope_validation_config(path, class_name) is True
+    assert patch_rope_validation_config(path, class_name) is False
 
     namespace = {}
     exec(path.read_text(), namespace)
 
-    cls = namespace["Qwen3_8FlashNextTextConfig"]
-    assert cls.ignore_keys_at_rope_validation == {
-        "mrope_section",
-        "mrope_interleaved",
-    }
+    target = namespace[class_name]
+    assert (
+        frozenset(target.ignore_keys_at_rope_validation)
+        == ROPE_VALIDATION_IGNORE_KEYS
+    )
+    assert not hasattr(
+        namespace["UnrelatedConfig"],
+        "ignore_keys_at_rope_validation",
+    )
+
+
+def test_rope_validation_patch_handles_multiline_class_header(
+    tmp_path: Path,
+):
+    path = tmp_path / "config.py"
+    path.write_text(
+        "class Qwen4ExpTextConfig(\n"
+        "    object,\n"
+        "):\n"
+        "    model_type = 'qwen4_exp_text'\n"
+    )
+
+    assert patch_rope_validation_config(
+        path,
+        "Qwen4ExpTextConfig",
+    ) is True
+
+    compile(path.read_text(), str(path), "exec")
+
+
+def test_rope_validation_patch_fails_closed_on_conflicting_value(
+    tmp_path: Path,
+):
+    path = tmp_path / "config.py"
+    path.write_text(
+        "class Qwen4ExpTextConfig(object):\n"
+        "    ignore_keys_at_rope_validation = {'different_key'}\n"
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected value"):
+        patch_rope_validation_config(
+            path,
+            "Qwen4ExpTextConfig",
+        )
+
+
+def test_rope_validation_patch_requires_exact_target(tmp_path: Path):
+    path = tmp_path / "config.py"
+    path.write_text("class OtherConfig(object):\n    pass\n")
+
+    with pytest.raises(RuntimeError, match="found 0"):
+        patch_rope_validation_config(
+            path,
+            "Qwen4ExpTextConfig",
+        )
 
 
 def test_qwen3vl_video_doc_patch(tmp_path: Path):
