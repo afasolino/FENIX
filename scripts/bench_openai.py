@@ -22,7 +22,8 @@ def run_one(url,model,prompt,max_tokens,temp,rid):
             obj=json.loads(data)
             if obj.get("usage"):usage=obj["usage"]
             ch=obj.get("choices") or []
-            if ch and (ch[0].get("delta") or {}).get("content") and first is None:first=time.perf_counter_ns()
+            delta=(ch[0].get("delta") or {}) if ch else {}
+            if first is None and (delta.get("content") or delta.get("reasoning_content")):first=time.perf_counter_ns()
     t1=time.perf_counter_ns();u=usage or {};ct=u.get("completion_tokens");pt=u.get("prompt_tokens")
     return {"request_id":rid,"start_ns":t0,"first_token_ns":first,"end_ns":t1,
             "prompt_tokens":pt,"completion_tokens":ct,
@@ -54,8 +55,8 @@ def main():
         for r in sorted(results,key=lambda x:x["ordinal"]):f.write(json.dumps(r)+"\n")
     good=[r for r in results if "error" not in r];wall=(t1-t0)/1e9
     summ={"requests":len(results),"success":len(good),"concurrency":a.concurrency,"wall_s":wall,
-          "aggregate_decode_tokens_s":sum(r.get("completion_tokens") or 0 for r in good)/wall if wall else None,
-          "aggregate_prefill_tokens_s":sum(r.get("prompt_tokens") or 0 for r in good)/wall if wall else None}
+          "aggregate_completion_tokens_s":sum(r.get("completion_tokens") or 0 for r in good)/wall if wall else None,
+          "aggregate_prompt_tokens_s":sum(r.get("prompt_tokens") or 0 for r in good)/wall if wall else None}
     for fld in ("ttft_ms","tpot_ms","e2e_ms"):
         xs=[r[fld] for r in good if r.get(fld) is not None]
         for name,p in (("p50",.5),("p95",.95),("p99",.99)):summ[f"{fld}_{name}"]=pct(xs,p)

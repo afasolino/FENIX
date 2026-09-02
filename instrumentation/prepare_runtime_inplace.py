@@ -15,6 +15,28 @@ def replace_once(path,old,new):
     if n!=1:raise RuntimeError(f"{path}: anchor count {n}, expected 1")
     path.write_text(t.replace(old,new,1))
 
+def instrument_ple_address_trace(path):
+    old="        ngram_ids = torch.cat(id_blocks, dim=-1)\n"
+    extra="""        if is_offload_process() and __import__("os").getenv("FENIX_TRACE","0").lower() in {"1","true","yes"}:
+            from vllm.fenix_trace_runtime import emit, next_id
+            _address_known_ns = __import__("time").monotonic_ns()
+            _weight = getattr(self.ngram_embedding, "weight", None)
+            _row_bytes = None
+            if _weight is not None and getattr(_weight, "ndim", 0) >= 2:
+                _row_bytes = int(_weight[0].numel() * _weight.element_size())
+            emit("ple_runtime", {
+                "kind":"address_batch",
+                "step_id":next_id("ple_address"),
+                "address_known_ns":_address_known_ns,
+                "input_ids":input_ids.detach().cpu().reshape(-1).tolist(),
+                "query_start_loc":query_start_loc.detach().cpu().reshape(-1).tolist(),
+                "ngram_context":ngram_context.detach().cpu().tolist(),
+                "physical_row_ids":ngram_ids.detach().cpu().tolist(),
+                "row_bytes":_row_bytes,
+            })
+"""
+    replace_once(path,old,old+extra)
+
 def main():
     ap=argparse.ArgumentParser();ap.add_argument("--runtime",required=True);ap.add_argument("--skip-git-pin-check",action="store_true");ap.add_argument("--source-pin",default=PIN);a=ap.parse_args()
     root=Path(a.runtime).resolve()
@@ -26,43 +48,8 @@ def main():
     shutil.copy2(Path(__file__).with_name("fenix_trace_runtime.py"),root/"runtime/vllm-overlay/fenix_trace_runtime.py")
     man={"runtime_head":head,"before":{},"after":{}}
 
-    worker=root/"runtime/vllm-overlay/v1/ple_offload/worker.py";man["before"][str(worker.relative_to(root))]=sha(worker)
-    old="        self._load_weights()\n"
-    new="""        self._load_weights()
-        if __import__("os").getenv("FENIX_TRACE","0").lower() in {"1","true","yes"}:
-            from vllm.fenix_trace_runtime import emit, next_id
-            for _lname, _layer in self._layers.items():
-                _target = _layer
-                if not hasattr(_target, "compute_ngram_ids"):
-                    for _m in _layer.modules():
-                        if hasattr(_m, "compute_ngram_ids"):
-                            _target = _m
-                            break
-                if not hasattr(_target, "compute_ngram_ids"):
-                    continue
-                _orig = _target.compute_ngram_ids
-                def _wrapped(input_ids, query_start_loc, ngram_context, _orig=_orig, _lname=_lname, _target=_target):
-                    import time as _time
-                    _step = next_id("ple_address")
-                    _rows = _orig(input_ids, query_start_loc, ngram_context)
-                    _row_bytes = None
-                    _emb = getattr(_target, "ngram_embedding", None)
-                    _weight = getattr(_emb, "weight", None)
-                    if _weight is not None and getattr(_weight, "ndim", 0) >= 2:
-                        _row_bytes = int(_weight[0].numel() * _weight.element_size())
-                    emit("ple_runtime", {
-                        "kind":"address_batch","step_id":_step,"layer":_lname,
-                        "address_known_ns":_time.monotonic_ns(),
-                        "input_ids":input_ids.detach().cpu().reshape(-1).tolist(),
-                        "query_start_loc":query_start_loc.detach().cpu().reshape(-1).tolist(),
-                        "ngram_context":ngram_context.detach().cpu().tolist(),
-                        "physical_row_ids":_rows.detach().cpu().tolist(),
-                        "row_bytes":_row_bytes,
-                    })
-                    return _rows
-                _target.compute_ngram_ids = _wrapped
-"""
-    replace_once(worker,old,new);man["after"][str(worker.relative_to(root))]=sha(worker)
+    ple_impl=root/"runtime/vllm-overlay/models/qwen3_8_flash_next/nvidia/ple_layer.py";man["before"][str(ple_impl.relative_to(root))]=sha(ple_impl)
+    instrument_ple_address_trace(ple_impl);man["after"][str(ple_impl.relative_to(root))]=sha(ple_impl)
 
     ple=root/"runtime/vllm-overlay/model_executor/layers/ple_offload_layer.py";man["before"][str(ple.relative_to(root))]=sha(ple)
     replace_once(ple,"import functools\n","import functools\nimport os\n")
