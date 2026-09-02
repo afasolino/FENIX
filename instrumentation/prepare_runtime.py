@@ -26,6 +26,33 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def ensure_docker_context_include(
+    runtime_root: Path,
+    relative_path: Path,
+) -> dict[str, str]:
+    """Allow-list one generated artifact in the staged Docker context."""
+
+    target = runtime_root / relative_path
+    if not target.is_file():
+        raise RuntimeError(f"Docker context artifact is missing: {target}")
+
+    dockerignore = runtime_root / ".dockerignore"
+    if not dockerignore.is_file():
+        raise RuntimeError(f"Docker ignore file is missing: {dockerignore}")
+
+    entry = f"!{relative_path.as_posix()}"
+    lines = dockerignore.read_text().splitlines()
+    if entry not in lines:
+        lines.append(entry)
+        dockerignore.write_text("\n".join(lines) + "\n")
+
+    return {
+        "path": str(dockerignore.relative_to(runtime_root)),
+        "allow_entry": entry,
+        "sha256": sha256(dockerignore),
+    }
+
+
 def regenerate_overlay_manifest(runtime_root: Path) -> dict[str, object]:
     """Regenerate the manifest using the exact install_overlay.py semantics."""
 
@@ -110,8 +137,13 @@ def main() -> int:
             f"missing runtime hardener: {hardener_source}"
         )
 
-    hardener_target = staging / "runtime/fenix_harden_runtime_image.py"
+    hardener_relative = Path("runtime/fenix_harden_runtime_image.py")
+    hardener_target = staging / hardener_relative
     shutil.copy2(hardener_source, hardener_target)
+    docker_context = ensure_docker_context_include(
+        staging,
+        hardener_relative,
+    )
 
     dockerfile = staging / "docker/Dockerfile"
     docker_text = dockerfile.read_text()
@@ -151,6 +183,7 @@ def main() -> int:
 
     provenance = json.loads(instrumentation_manifest.read_text())
     provenance["overlay_manifest"] = overlay_manifest
+    provenance["docker_context"] = docker_context
     provenance["source_checkout_modified"] = False
     instrumentation_manifest.write_text(json.dumps(provenance, indent=2) + "\n")
 
