@@ -23,12 +23,19 @@ ENDPOINT_FIELDS = (
 
 
 @dataclass(frozen=True)
+class BudgetPolicy:
+    role: str
+    motivation_eligible: bool
+
+
+@dataclass(frozen=True)
 class GateConfig:
     minimum_repetitions: int
     max_tpot_ratio: float
     min_storage_reduction: float
     bootstrap_samples: int
     bootstrap_alpha: float
+    budget_policies: dict[float, BudgetPolicy]
 
 
 def bootstrap_difference_interval(
@@ -57,6 +64,33 @@ def bootstrap_difference_interval(
     return differences[lower_index], differences[upper_index]
 
 
+def _load_budget_policies(experiment: dict[str, object]) -> dict[float, BudgetPolicy]:
+    raw_budgets = experiment.get("host_memory_budgets_gib")
+    raw_roles = experiment.get("budget_roles")
+    if not isinstance(raw_budgets, list) or not raw_budgets:
+        raise ValueError("capacity_tradeoff host_memory_budgets_gib is missing")
+    if not isinstance(raw_roles, dict):
+        raise ValueError("capacity_tradeoff budget_roles is missing")
+
+    policies: dict[float, BudgetPolicy] = {}
+    for raw_budget in raw_budgets:
+        budget = float(raw_budget)
+        key = str(int(budget)) if budget.is_integer() else str(budget)
+        item = raw_roles.get(key)
+        if not isinstance(item, dict):
+            raise ValueError(f"capacity_tradeoff budget role is missing for {key} GiB")
+        role = item.get("role")
+        eligible = item.get("motivation_eligible")
+        if not isinstance(role, str) or not role:
+            raise ValueError(f"capacity_tradeoff role is invalid for {key} GiB")
+        if not isinstance(eligible, bool):
+            raise ValueError(
+                f"capacity_tradeoff motivation_eligible is invalid for {key} GiB"
+            )
+        policies[budget] = BudgetPolicy(role=role, motivation_eligible=eligible)
+    return policies
+
+
 def load_gate_config(config_path: Path) -> GateConfig:
     config = json.loads(config_path.read_text())
     experiment = config["experiments"]["capacity_tradeoff"]
@@ -64,14 +98,11 @@ def load_gate_config(config_path: Path) -> GateConfig:
 
     return GateConfig(
         minimum_repetitions=int(experiment["minimum_measured_repetitions"]),
-        max_tpot_ratio=float(
-            gate["max_externalized_to_baseline_tpot_ratio"]
-        ),
-        min_storage_reduction=float(
-            gate["min_expert_storage_bytes_reduction"]
-        ),
+        max_tpot_ratio=float(gate["max_externalized_to_baseline_tpot_ratio"]),
+        min_storage_reduction=float(gate["min_expert_storage_bytes_reduction"]),
         bootstrap_samples=int(gate["bootstrap_samples"]),
         bootstrap_alpha=float(gate["bootstrap_alpha"]),
+        budget_policies=_load_budget_policies(experiment),
     )
 
 
@@ -82,9 +113,7 @@ def endpoint_metadata_errors(rows: Iterable[dict[str, object]]) -> list[str]:
     materialized = list(rows)
 
     for field in ENDPOINT_FIELDS:
-        missing_count = sum(
-            row.get(field) in (None, "") for row in materialized
-        )
+        missing_count = sum(row.get(field) in (None, "") for row in materialized)
         if missing_count:
             errors.append(f"{field}:missing={missing_count}")
             continue
@@ -105,11 +134,10 @@ def evaluate_budget(
     baseline_rows: list[dict[str, object]],
     counterfactual_rows: list[dict[str, object]],
     gate: GateConfig,
+    policy: BudgetPolicy,
 ) -> dict[str, object]:
     baseline_tpot = [float(row["tpot_ms"]) for row in baseline_rows]
-    counterfactual_tpot = [
-        float(row["tpot_ms"]) for row in counterfactual_rows
-    ]
+    counterfactual_tpot = [float(row["tpot_ms"]) for row in counterfactual_rows]
 
     baseline_storage = mean_metric(
         baseline_rows, "expert_storage_bytes_per_token"
@@ -133,7 +161,7 @@ def evaluate_budget(
         gate.bootstrap_alpha,
     )
 
-    passed = (
+    passed_materiality = (
         tpot_ratio <= gate.max_tpot_ratio
         and storage_reduction >= gate.min_storage_reduction
         and ci_high < 0
@@ -141,6 +169,8 @@ def evaluate_budget(
 
     return {
         "host_budget_gib": budget,
+        "budget_role": policy.role,
+        "motivation_eligible": policy.motivation_eligible,
         "baseline_repetitions": len(baseline_rows),
         "counterfactual_repetitions": len(counterfactual_rows),
         "externalized_to_baseline_tpot_ratio": tpot_ratio,
@@ -149,7 +179,8 @@ def evaluate_budget(
             "lower": ci_low,
             "upper": ci_high,
         },
-        "passed": passed,
+        "passed_materiality": passed_materiality,
+        "passed": passed_materiality and policy.motivation_eligible,
     }
 
 
@@ -157,7 +188,7 @@ def evaluate(
     measured_path: Path,
     config_path: Path,
 ) -> dict[str, object]:
-    verdict = {
+    verdict: dict[str, object] = {
         "verdict": "INCONCLUSIVE",
         "proceed_to_hardware_architecture": False,
         "reasons": [],
@@ -165,44 +196,50 @@ def evaluate(
     }
 
     if not measured_path.exists():
-        verdict["reasons"].append("measured capacity-tradeoff results are absent")
+        verdict["reasons"].append("measured capacity-tradeoff results are absent")  # type: ignore[union-attr]
         return verdict
 
     document = json.loads(measured_path.read_text())
     if document.get("evidence_kind") == "trace_projection":
-        verdict["reasons"].append(
+        verdict["reasons"].append(  # type: ignore[union-attr]
             "trace projections cannot establish the motivation gate"
         )
         return verdict
 
-    rows = [
-        row
-        for row in document.get("rows", [])
-        if bool(row.get("measured"))
-    ]
+    rows = [row for row in document.get("rows", []) if bool(row.get("measured"))]
     if not rows:
-        verdict["reasons"].append("no measured rows are present")
+        verdict["reasons"].append("no measured rows are present")  # type: ignore[union-attr]
         return verdict
 
     metadata_errors = endpoint_metadata_errors(rows)
     if metadata_errors:
-        verdict["reasons"].append(
+        verdict["reasons"].append(  # type: ignore[union-attr]
             "invalid endpoint metadata: " + ", ".join(metadata_errors)
         )
         return verdict
 
-    gate = load_gate_config(config_path)
-    evaluated = []
+    try:
+        gate = load_gate_config(config_path)
+    except (KeyError, TypeError, ValueError) as exc:
+        verdict["reasons"].append(f"invalid motivation-gate configuration: {exc}")  # type: ignore[union-attr]
+        return verdict
 
-    budgets = sorted(
+    measured_budgets = sorted(
         {
             float(row["host_budget_gib"])
             for row in rows
             if row.get("host_budget_gib") is not None
         }
     )
+    unknown = [budget for budget in measured_budgets if budget not in gate.budget_policies]
+    if unknown:
+        verdict["reasons"].append(  # type: ignore[union-attr]
+            f"measured rows contain undeclared host-memory budgets: {unknown}"
+        )
+        return verdict
 
-    for budget in budgets:
+    evaluated = []
+    for budget in measured_budgets:
         baseline_rows = [
             row
             for row in rows
@@ -228,28 +265,35 @@ def evaluate(
                 baseline_rows,
                 counterfactual_rows,
                 gate,
+                gate.budget_policies[budget],
             )
         )
 
     verdict["budgets"] = evaluated
+    eligible = [item for item in evaluated if item["motivation_eligible"]]
 
-    if not evaluated:
-        verdict["reasons"].append(
-            "no host-memory budget has enough measured repetitions in both placements"
+    if not eligible:
+        verdict["reasons"].append(  # type: ignore[union-attr]
+            "no motivation-eligible host-memory budget has enough measured "
+            "repetitions in both placements"
         )
         return verdict
 
-    if any(item["passed"] for item in evaluated):
+    if any(item["passed"] for item in eligible):
         verdict.update(
             verdict="SUPPORTED",
             proceed_to_hardware_architecture=True,
-            reasons=["at least one measured budget passes all predeclared gates"],
+            reasons=[
+                "at least one predeclared motivation-eligible budget passes "
+                "all materiality gates"
+            ],
         )
     else:
         verdict.update(
             verdict="FALSIFIED",
             reasons=[
-                "measured capacity-tradeoff points do not pass the predeclared materiality gates"
+                "no predeclared motivation-eligible capacity-tradeoff point "
+                "passes the materiality gates"
             ],
         )
 
@@ -269,7 +313,7 @@ def main() -> None:
 
     result = evaluate(args.measured_results, args.config)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2))
+    args.out.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
 
 

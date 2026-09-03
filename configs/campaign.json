@@ -22,13 +22,9 @@
     "runtime_qualification": {
       "warmup_requests": 3,
       "measured_requests": 10,
-      "input_tokens": [
-        1024
-      ],
+      "input_tokens": [1024],
       "output_tokens": 128,
-      "concurrency": [
-        1
-      ],
+      "concurrency": [1],
       "temperature": 0.0,
       "repetitions": 3,
       "workload_profile": "runtime_qualification_v1"
@@ -36,37 +32,44 @@
     "trace_characterization": {
       "seed": 20260901,
       "requests_per_input_length": 20,
-      "input_tokens": [
-        128,
-        1024,
-        4096
-      ],
+      "input_tokens": [128, 1024, 4096],
       "output_tokens": 256,
       "temperature": 0.0,
-      "exact_request_correlation_concurrency": [
-        1
-      ],
-      "aggregate_service_concurrency": [
-        2,
-        4
-      ],
+      "exact_request_correlation_concurrency": [1],
+      "aggregate_service_concurrency": [2, 4],
       "repetitions": 1,
       "workload_profile": "trace_characterization_v1",
       "workload_corpus": "configs/trace_prompt_corpus_v1.json"
     },
     "capacity_tradeoff": {
-      "host_memory_budgets_gib": [
-        64,
-        96,
-        112
-      ],
+      "host_memory_budgets_gib": [64, 96, 112],
       "memory_placement_policy": "local_to_gpu_numa_node",
       "baseline_placement": "ple_in_host_dram",
       "counterfactual_placement": "ple_externalized",
       "screen_with_trace_projection": true,
       "trace_projection_can_establish_motivation": false,
       "minimum_measured_repetitions": 3,
-      "measure_only_informative_screened_budgets": true,
+      "measure_only_informative_screened_budgets": false,
+      "measure_all_predeclared_budgets": true,
+      "budget_roles": {
+        "64": {
+          "role": "strong_memory_pressure",
+          "motivation_eligible": true
+        },
+        "96": {
+          "role": "partial_memory_pressure",
+          "motivation_eligible": true
+        },
+        "112": {
+          "role": "saturation_control",
+          "motivation_eligible": false
+        }
+      },
+      "placement_order": {
+        "64": ["ple_in_host_dram", "ple_externalized"],
+        "96": ["ple_externalized", "ple_in_host_dram"],
+        "112": ["ple_in_host_dram", "ple_externalized"]
+      },
       "require_same_runtime": true,
       "require_same_model_revision": true,
       "require_same_hardware": true,
@@ -74,18 +77,7 @@
     }
   },
   "trace_analysis": {
-    "ple_cache_capacities_gib": [
-      0.125,
-      0.25,
-      0.5,
-      1,
-      2,
-      4,
-      8,
-      16,
-      32,
-      48
-    ]
+    "ple_cache_capacities_gib": [0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 48]
   },
   "motivation_gate": {
     "primary_metric": "tpot_ms",

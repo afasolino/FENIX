@@ -39,7 +39,16 @@ def test_missing_endpoint_metadata_is_inconclusive(tmp_path: Path):
         json.dumps(
             {
                 "experiments": {
-                    "capacity_tradeoff": {"minimum_measured_repetitions": 3}
+                    "capacity_tradeoff": {
+                        "host_memory_budgets_gib": [96],
+                        "minimum_measured_repetitions": 3,
+                        "budget_roles": {
+                            "96": {
+                                "role": "partial",
+                                "motivation_eligible": True,
+                            }
+                        },
+                    }
                 },
                 "motivation_gate": {
                     "max_externalized_to_baseline_tpot_ratio": 0.9,

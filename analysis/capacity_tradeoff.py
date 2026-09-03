@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Screen host-memory budgets using a trace-driven expert-residency model.
 
-This model is deliberately non-promotional: its output is tagged
+The projection is deliberately non-promotional: output is tagged
 ``trace_projection`` and cannot establish the FENIX motivation claim.
+
+Unlike the original global-LRU approximation, this model matches the intended
+runtime geometry: expert residency is bounded independently per transformer
+layer. Total nominal slots are therefore capped at the model's finite
+``num_hidden_layers * num_experts`` population and distributed deterministically
+across layers.
 """
 
 from __future__ import annotations
@@ -12,7 +18,7 @@ import collections
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 from analysis.expert_locality import parse_layer_id
 
@@ -26,7 +32,12 @@ class Projection:
     placement: str
     host_budget_bytes: int
     bytes_available_for_experts: int
+    nominal_expert_capacity: int
     expert_capacity: int
+    expert_population: int
+    per_layer_capacity_min: int
+    per_layer_capacity_max: int
+    saturated: bool
     expert_cache_hit_rate: float
     expert_misses_per_selection: float
     expert_storage_bytes_per_selection: float
@@ -38,8 +49,14 @@ class CapacityInputs:
     ple_host_bytes: int
     ple_row_bytes: int | None
     ple_addressable_rows: int | None
+    num_hidden_layers: int
+    num_experts: int
     expert_bytes_source: str
     ple_host_bytes_source: str
+
+    @property
+    def expert_population(self) -> int:
+        return self.num_hidden_layers * self.num_experts
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -65,7 +82,12 @@ def load_expert_sequence(trace_path: Path) -> list[ExpertKey]:
             raise ValueError(f"{trace_path}:{line_number}: missing layer")
 
         layer = parse_layer_id(record["layer"])
-        for expert in record.get("selected_expert_ids", []):
+        selected = record.get("selected_expert_ids", [])
+        if not isinstance(selected, list):
+            raise ValueError(
+                f"{trace_path}:{line_number}: selected_expert_ids must be a list"
+            )
+        for expert in selected:
             sequence.append((layer, int(expert)))
 
     if not sequence:
@@ -75,7 +97,7 @@ def load_expert_sequence(trace_path: Path) -> list[ExpertKey]:
 
 
 def derive_expert_bytes(trace_path: Path) -> int:
-    """Derive one expert cache-slot byte size from explicit transfer records."""
+    """Derive one complete ``(layer, expert)`` cache-slot size from transfers."""
 
     observed: set[int] = set()
     for line_number, record in enumerate(_load_jsonl(trace_path), start=1):
@@ -106,10 +128,17 @@ def derive_expert_bytes(trace_path: Path) -> int:
     return next(iter(observed))
 
 
-def _model_geometry(config_path: Path) -> tuple[int, int, int]:
+def _campaign_model(config_path: Path) -> dict[str, Any]:
     payload = json.loads(config_path.read_text())
+    model = payload.get("model")
+    if not isinstance(model, dict):
+        raise ValueError("campaign model geometry is missing")
+    return model
+
+
+def _ple_geometry(config_path: Path) -> tuple[int, int, int]:
+    model = _campaign_model(config_path)
     try:
-        model = payload["model"]
         ngram_size = int(model["ngram_size"])
         heads_per_ngram = int(model["heads_per_ngram"])
         vocab = int(model["ngram_vocab_size_base"])
@@ -118,6 +147,20 @@ def _model_geometry(config_path: Path) -> tuple[int, int, int]:
     if ngram_size < 2 or heads_per_ngram < 1 or vocab < 1:
         raise ValueError("campaign model PLE geometry must be positive")
     return ngram_size, heads_per_ngram, vocab
+
+
+def load_expert_geometry(config_path: Path) -> tuple[int, int]:
+    """Return ``(num_hidden_layers, num_experts_per_layer)``."""
+
+    model = _campaign_model(config_path)
+    try:
+        layers = int(model["num_hidden_layers"])
+        experts = int(model["num_experts"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("campaign model expert geometry is incomplete") from exc
+    if layers < 1 or experts < 1:
+        raise ValueError("campaign model expert geometry must be positive")
+    return layers, experts
 
 
 def derive_ple_host_bytes(
@@ -143,7 +186,7 @@ def derive_ple_host_bytes(
         )
 
     row_bytes = next(iter(observed_row_bytes))
-    ngram_size, heads_per_ngram, vocab = _model_geometry(config_path)
+    ngram_size, heads_per_ngram, vocab = _ple_geometry(config_path)
     addressable_rows = (ngram_size - 1) * heads_per_ngram * vocab
     return addressable_rows * row_bytes, row_bytes, addressable_rows
 
@@ -182,33 +225,120 @@ def resolve_capacity_inputs(
         )
         ple_source = "measured_row_width_plus_versioned_geometry"
 
+    layers, experts = load_expert_geometry(config_path)
     return CapacityInputs(
         expert_bytes=expert_bytes,
         ple_host_bytes=ple_host_bytes,
         ple_row_bytes=row_bytes,
         ple_addressable_rows=addressable_rows,
+        num_hidden_layers=layers,
+        num_experts=experts,
         expert_bytes_source=expert_source,
         ple_host_bytes_source=ple_source,
     )
 
 
-def simulate_lru(sequence: Iterable[ExpertKey], capacity: int) -> tuple[int, int, int]:
-    cache: collections.OrderedDict[ExpertKey, None] = collections.OrderedDict()
+def distribute_expert_capacity(
+    total_capacity: int,
+    *,
+    num_hidden_layers: int,
+    num_experts: int,
+) -> tuple[int, ...]:
+    """Distribute a bounded whole-expert capacity across layers.
+
+    Capacity is capped at the finite model population. Any remainder after an
+    even split is assigned to the lowest layer IDs. The same deterministic rule
+    is used by the planned measured runtime so projection and implementation do
+    not disagree about cache geometry.
+    """
+
+    if total_capacity < 0:
+        raise ValueError("total expert capacity cannot be negative")
+    if num_hidden_layers < 1 or num_experts < 1:
+        raise ValueError("expert geometry must be positive")
+
+    population = num_hidden_layers * num_experts
+    effective = min(total_capacity, population)
+    base, remainder = divmod(effective, num_hidden_layers)
+    if base > num_experts:
+        raise AssertionError("capacity cap failed")
+
+    capacities = tuple(
+        base + (1 if layer < remainder else 0)
+        for layer in range(num_hidden_layers)
+    )
+    if capacities and max(capacities) > num_experts:
+        raise AssertionError("per-layer expert capacity exceeds model geometry")
+    if sum(capacities) != effective:
+        raise AssertionError("distributed expert capacity does not sum correctly")
+    return capacities
+
+
+def simulate_layered_lru(
+    sequence: Iterable[ExpertKey],
+    capacities: Sequence[int],
+    *,
+    num_experts: int,
+) -> tuple[int, int, int]:
+    """Simulate independent per-layer LRU caches over routed experts."""
+
+    if not capacities:
+        raise ValueError("at least one layer capacity is required")
+    if num_experts < 1:
+        raise ValueError("num_experts must be positive")
+    if any(capacity < 0 or capacity > num_experts for capacity in capacities):
+        raise ValueError("per-layer capacity is outside model geometry")
+
+    caches: list[collections.OrderedDict[int, None]] = [
+        collections.OrderedDict() for _ in capacities
+    ]
     selections = hits = misses = 0
 
+    for layer, expert in sequence:
+        if not 0 <= layer < len(capacities):
+            raise ValueError(
+                f"expert trace layer {layer} is outside 0..{len(capacities) - 1}"
+            )
+        if not 0 <= expert < num_experts:
+            raise ValueError(
+                f"expert trace ID {expert} is outside 0..{num_experts - 1}"
+            )
+
+        selections += 1
+        cache = caches[layer]
+        capacity = capacities[layer]
+        if expert in cache:
+            hits += 1
+            cache.move_to_end(expert)
+            continue
+
+        misses += 1
+        if capacity > 0:
+            cache[expert] = None
+            if len(cache) > capacity:
+                cache.popitem(last=False)
+
+    return selections, hits, misses
+
+
+def simulate_lru(
+    sequence: Iterable[ExpertKey], capacity: int
+) -> tuple[int, int, int]:
+    """Legacy global-LRU helper retained for unit-level compatibility only."""
+
+    cache: collections.OrderedDict[ExpertKey, None] = collections.OrderedDict()
+    selections = hits = misses = 0
     for key in sequence:
         selections += 1
         if key in cache:
             hits += 1
             cache.move_to_end(key)
             continue
-
         misses += 1
         if capacity > 0:
             cache[key] = None
             if len(cache) > capacity:
                 cache.popitem(last=False)
-
     return selections, hits, misses
 
 
@@ -218,9 +348,18 @@ def project_budget(
     expert_bytes: int,
     ple_host_bytes: int,
     placement: str,
+    *,
+    num_hidden_layers: int,
+    num_experts: int,
 ) -> Projection:
-    host_budget_bytes = int(host_budget_gib * 1024**3)
+    if host_budget_gib <= 0:
+        raise ValueError("host budget must be positive")
+    if expert_bytes <= 0:
+        raise ValueError("expert_bytes must be positive")
+    if ple_host_bytes < 0:
+        raise ValueError("ple_host_bytes cannot be negative")
 
+    host_budget_bytes = int(host_budget_gib * 1024**3)
     if placement == "ple_in_host_dram":
         bytes_available_for_experts = max(0, host_budget_bytes - ple_host_bytes)
     elif placement == "ple_externalized":
@@ -228,15 +367,31 @@ def project_budget(
     else:
         raise ValueError(f"unsupported placement: {placement}")
 
-    expert_capacity = bytes_available_for_experts // expert_bytes
-    selections, hits, misses = simulate_lru(sequence, expert_capacity)
+    nominal_capacity = bytes_available_for_experts // expert_bytes
+    capacities = distribute_expert_capacity(
+        nominal_capacity,
+        num_hidden_layers=num_hidden_layers,
+        num_experts=num_experts,
+    )
+    effective_capacity = sum(capacities)
+    selections, hits, misses = simulate_layered_lru(
+        sequence,
+        capacities,
+        num_experts=num_experts,
+    )
+    population = num_hidden_layers * num_experts
 
     return Projection(
         host_budget_gib=host_budget_gib,
         placement=placement,
         host_budget_bytes=host_budget_bytes,
         bytes_available_for_experts=bytes_available_for_experts,
-        expert_capacity=expert_capacity,
+        nominal_expert_capacity=nominal_capacity,
+        expert_capacity=effective_capacity,
+        expert_population=population,
+        per_layer_capacity_min=min(capacities),
+        per_layer_capacity_max=max(capacities),
+        saturated=effective_capacity == population,
         expert_cache_hit_rate=hits / selections,
         expert_misses_per_selection=misses / selections,
         expert_storage_bytes_per_selection=(misses * expert_bytes) / selections,
@@ -249,6 +404,8 @@ def load_budgets(config_path: Path) -> list[float]:
     budgets = [float(value) for value in raw]
     if not budgets or any(value <= 0 for value in budgets):
         raise ValueError("capacity-tradeoff budgets must be positive")
+    if len(set(budgets)) != len(budgets):
+        raise ValueError("capacity-tradeoff budgets must be unique")
     return budgets
 
 
@@ -279,6 +436,16 @@ def paired_deltas(rows: list[Projection]) -> list[dict[str, Any]]:
                 "additional_expert_capacity": (
                     externalized.expert_capacity - baseline.expert_capacity
                 ),
+                "baseline_per_layer_capacity": {
+                    "min": baseline.per_layer_capacity_min,
+                    "max": baseline.per_layer_capacity_max,
+                },
+                "externalized_per_layer_capacity": {
+                    "min": externalized.per_layer_capacity_min,
+                    "max": externalized.per_layer_capacity_max,
+                },
+                "baseline_saturated": baseline.saturated,
+                "externalized_saturated": externalized.saturated,
                 "expert_storage_bytes_reduction_fraction": reduction,
             }
         )
@@ -311,6 +478,8 @@ def main() -> None:
                 inputs.expert_bytes,
                 inputs.ple_host_bytes,
                 placement,
+                num_hidden_layers=inputs.num_hidden_layers,
+                num_experts=inputs.num_experts,
             )
             for budget in load_budgets(args.config)
             for placement in ("ple_in_host_dram", "ple_externalized")
@@ -319,10 +488,11 @@ def main() -> None:
         raise SystemExit(str(exc)) from exc
 
     result = {
-        "schema_version": 2,
+        "schema_version": 3,
         "evidence_kind": "trace_projection",
         "can_establish_motivation": False,
         "budget_scope": "ple_plus_expert_managed_capacity",
+        "cache_geometry": "independent_per_layer_lru",
         "inputs": asdict(inputs),
         # Keep legacy top-level names for downstream compatibility.
         "expert_bytes": inputs.expert_bytes,

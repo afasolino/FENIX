@@ -12,7 +12,13 @@ def write_jsonl(path: Path, rows):
 
 def write_campaign(path: Path):
     path.write_text(json.dumps({
-        "model": {"ngram_size": 3, "heads_per_ngram": 8, "ngram_vocab_size_base": 20_000_000},
+        "model": {
+            "ngram_size": 3,
+            "heads_per_ngram": 8,
+            "ngram_vocab_size_base": 20_000_000,
+            "num_hidden_layers": 48,
+            "num_experts": 512,
+        },
         "experiments": {"capacity_tradeoff": {"host_memory_budgets_gib": [64]}},
     }))
 
@@ -56,12 +62,22 @@ def test_manual_overrides_are_explicitly_labeled(tmp_path: Path):
     )
     assert inputs.expert_bytes_source == "manual_override"
     assert inputs.ple_host_bytes_source == "manual_override"
+    assert inputs.num_hidden_layers == 48
+    assert inputs.num_experts == 512
 
 
-def test_paired_delta_reports_additional_expert_capacity():
+def test_paired_delta_reports_effective_additional_capacity():
     sequence = [(0, 0), (0, 1), (0, 0)]
     rows = [
-        capacity_tradeoff.project_budget(sequence, 1, 128 * 1024**2, 512 * 1024**2, placement)
+        capacity_tradeoff.project_budget(
+            sequence,
+            1,
+            128 * 1024**2,
+            512 * 1024**2,
+            placement,
+            num_hidden_layers=1,
+            num_experts=8,
+        )
         for placement in ("ple_in_host_dram", "ple_externalized")
     ]
     delta = capacity_tradeoff.paired_deltas(rows)[0]
