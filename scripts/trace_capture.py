@@ -151,9 +151,14 @@ def resolve_image_id(root: Path, image: str) -> str:
             f"cannot resolve runtime image ID for {image}: {completed.stderr.strip()}"
         )
     image_id = completed.stdout.strip()
-    if not image_id.startswith("sha256:"):
-        raise TraceCaptureError(f"unexpected runtime image ID: {image_id!r}")
-    return image_id
+
+    if re.fullmatch(r"[0-9a-fA-F]{64}", image_id):
+        return f"sha256:{image_id.lower()}"
+
+    if re.fullmatch(r"sha256:[0-9a-fA-F]{64}", image_id):
+        return f"sha256:{image_id[7:].lower()}"
+
+    raise TraceCaptureError(f"unexpected runtime image ID: {image_id!r}")
 
 
 def load_runtime_lane(path: Path) -> dict[str, Any]:

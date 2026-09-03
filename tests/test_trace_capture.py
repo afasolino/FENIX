@@ -54,3 +54,68 @@ def test_campaign_lock_is_non_reentrant(tmp_path: Path):
         with pytest.raises(trace_capture.TraceCaptureError, match="holds the lock"):
             with trace_capture.campaign_lock(lock):
                 pass
+
+
+def test_resolve_image_id_normalizes_bare_podman_id(monkeypatch):
+    digest = "6207dfc7ab8761cc56559977d89b845549b429d0f1affd461884404931688a4b"
+
+    def fake_run(*args, **kwargs):
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": digest + "\n",
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr(trace_capture.subprocess, "run", fake_run)
+
+    assert trace_capture.resolve_image_id(
+        Path("."), "fenix-qwen38:candidate"
+    ) == f"sha256:{digest}"
+
+
+def test_resolve_image_id_accepts_prefixed_podman_id(monkeypatch):
+    digest = "6207dfc7ab8761cc56559977d89b845549b429d0f1affd461884404931688a4b"
+
+    def fake_run(*args, **kwargs):
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": f"sha256:{digest}\n",
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr(trace_capture.subprocess, "run", fake_run)
+
+    assert trace_capture.resolve_image_id(
+        Path("."), "fenix-qwen38:candidate"
+    ) == f"sha256:{digest}"
+
+
+def test_resolve_image_id_rejects_malformed_id(monkeypatch):
+    def fake_run(*args, **kwargs):
+        return type(
+            "Completed",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "not-an-image-id\n",
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr(trace_capture.subprocess, "run", fake_run)
+
+    with pytest.raises(
+        trace_capture.TraceCaptureError,
+        match="unexpected runtime image ID",
+    ):
+        trace_capture.resolve_image_id(
+            Path("."), "fenix-qwen38:candidate"
+        )
