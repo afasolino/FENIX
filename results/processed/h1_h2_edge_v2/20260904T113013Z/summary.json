@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_h2_campaign_summary",
+  "trace_root": "results/raw/h1_h2_characterization_v2/20260904T113013Z",
+  "trace_root_name": "20260904T113013Z",
+  "source_repository_commit": "df44dbbfaeb74441852d8a666078a918d90f5150",
+  "source_runtime_image_id": "sha256:5802000edac89fa935fc02b3a0a65967aa9ae122582c6c20b0b415bb699fa44c",
+  "campaign": {
+    "path": "configs/campaign.json",
+    "sha256": "5efb7ba7c516847d8ddde2419eb3c1a8bfd10128de47b30e8123e2a08d0c93b7"
+  },
+  "replay_contract": {
+    "path": "configs/edge_memory_replay_v1.json",
+    "sha256": "ae1328a46d8eec442e06c831ab41cf7a6e9fd6b7797d5179ba4cd233db408a47"
+  },
+  "measured_geometry": {
+    "expert_slot_bytes": 2534400,
+    "expert_slot_bytes_evidence_kind": "local_measured_trace_analysis",
+    "expert_slot_bytes_origin": "pre-H1/H2 A6000 WNA16 complete GPU hot-cache fill measurement",
+    "expert_slot_bytes_interpretation": "one complete runtime layer-expert object; reused as measured geometry, not re-derived from backend-specific H1 routing events"
+  },
+  "h1": {
+    "evidence_kind": "local_measured_trace_analysis",
+    "case_count": 3,
+    "coverage_complete": true,
+    "cases": [
+      {
+        "case_id": "i000128-c01-r01",
+        "input_tokens": 128,
+        "model_token_observations": 7660,
+        "conditional_unique_bytes": 52346272960,
+        "conditional_requested_bytes_per_model_token": 1216514560.0
+      },
+      {
+        "case_id": "i001024-c01-r01",
+        "input_tokens": 1024,
+        "model_token_observations": 25580,
+        "conditional_unique_bytes": 54993186080,
+        "conditional_requested_bytes_per_model_token": 1216514560.0
+      },
+      {
+        "case_id": "i004096-c01-r01",
+        "input_tokens": 4096,
+        "model_token_observations": 87020,
+        "conditional_unique_bytes": 58679106400,
+        "conditional_requested_bytes_per_model_token": 1216514560.0
+      }
+    ]
+  },
+  "h2": {
+    "evidence_kind": "trace_projection",
+    "budget_scope": "conditional_state_cache_capacity_not_total_edge_device_dram",
+    "policy": {
+      "name": "cross_case_static_hotset_demand_fill",
+      "training_input_tokens": 1024,
+      "training_case_id": "i001024-c01-r01",
+      "objective": "maximize_training_avoided_lower_tier_bytes",
+      "first_touch": "demand_fill_compulsory_miss",
+      "selection_is_in_sample_for_training_case": true,
+      "holdouts_are_cross_workload": true,
+      "interpretation": "capacity/traffic screening only; no LPDDR/UFS/NVMe timing or energy parameters are applied"
+    },
+    "holdout_summary": [
+      {
+        "budget_gib": 4.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.3858564022163127,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.3716166636492087,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.4000961407834166,
+        "mean_conditional_lower_tier_bytes_per_model_token": 747114628.6346394
+      },
+      {
+        "budget_gib": 7.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.5293372263368283,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.5134772263545887,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.5451972263190679,
+        "mean_conditional_lower_tier_bytes_per_model_token": 572568117.011233
+      },
+      {
+        "budget_gib": 8.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.5677414308982494,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.5522987445623051,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.5831841172341936,
+        "mean_conditional_lower_tier_bytes_per_model_token": 525848842.99704576
+      },
+      {
+        "budget_gib": 12.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.6928328755158111,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.6820594699234678,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.7036062811081545,
+        "mean_conditional_lower_tier_bytes_per_model_token": 373673279.2883482
+      },
+      {
+        "budget_gib": 16.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.7835770927516285,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.7784609048737672,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.7886932806294897,
+        "mean_conditional_lower_tier_bytes_per_model_token": 263281617.78517348
+      },
+      {
+        "budget_gib": 19.0,
+        "holdout_case_count": 2,
+        "mean_conditional_lower_tier_bytes_reduction_fraction": 0.836632120319628,
+        "min_conditional_lower_tier_bytes_reduction_fraction": 0.8365591320233032,
+        "max_conditional_lower_tier_bytes_reduction_fraction": 0.8367051086159527,
+        "mean_conditional_lower_tier_bytes_per_model_token": 198739404.2675007
+      }
+    ],
+    "can_establish_h3": false
+  }
+}

@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "local_measured_trace_analysis",
+  "hypothesis": "H1_working_set_sparsity",
+  "performance_eligible": false,
+  "can_establish_edge_performance": false,
+  "h1_coverage_complete": true,
+  "case_id": "i004096-c01-r01",
+  "case": {
+    "input_tokens": 4096,
+    "output_tokens": 256,
+    "requests": 20,
+    "concurrency": 1,
+    "correlation_mode": "exact_request_correlation"
+  },
+  "source": {
+    "repository_commit": "df44dbbfaeb74441852d8a666078a918d90f5150",
+    "runtime_image": "fenix-qwen38:h1-h2-trace-v2",
+    "runtime_image_id": "sha256:5802000edac89fa935fc02b3a0a65967aa9ae122582c6c20b0b415bb699fa44c",
+    "artifacts": {
+      "evidence.json": "77697a84c50bfae7b5b877648d0dec6d38b5d579305d3254dd2d68ad26514616",
+      "client.jsonl": "040c7c30abd316171831944bad1441f891f625f8c94d8c6ee6e246cbca5bca52",
+      "ple_normalized.jsonl": "eac413ecc77df3eb87506bb83ef08cfcb1e1dfef273150f779daa4e1ede7400b",
+      "moe_normalized.jsonl": "6c23c9b6da8da9c309226d3212f0b5fbd72c3fc10d2b02bcd322266f9a9661b6"
+    }
+  },
+  "geometry": {
+    "num_hidden_layers": 48,
+    "num_experts": 512,
+    "experts_per_token": 10,
+    "ple_addressable_rows": 320001536,
+    "ple_row_bytes": 160,
+    "expert_slot_bytes": 2534400,
+    "expert_slot_bytes_source": "explicit_override"
+  },
+  "coverage": {
+    "request_count": 20,
+    "requests": [
+      {
+        "request_id": "fenix-trace-0000-7b824e8b",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0001-d8527b12",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0002-019fe894",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0003-55433f33",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0004-15a9bb8c",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0005-28377b77",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0006-06658759",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0007-bdd8b5a1",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0008-4921e07b",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0009-90e19161",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0010-c5911271",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0011-b1ac8c2a",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0012-72766938",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0013-93b1b348",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0014-1d76bf16",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0015-97c6589c",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0016-70279733",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0017-94d93ab7",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0018-16bc01e1",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      },
+      {
+        "request_id": "fenix-trace-0019-4c95d2c9",
+        "ple_model_tokens": 4351,
+        "moe_tokens_per_layer_min": 4351,
+        "moe_tokens_per_layer_max": 4351,
+        "all_layers_present": true,
+        "moe_matches_ple_all_layers": true,
+        "prompt_tokens": 4096,
+        "completion_tokens": 256,
+        "autoregressive_expected_model_tokens": 4351,
+        "ple_minus_autoregressive_expected": 0
+      }
+    ]
+  },
+  "measured_working_set": {
+    "model_token_observations": 87020,
+    "ple_accesses": 1392320,
+    "ple_unique_rows": 48415,
+    "ple_unique_bytes": 7746400,
+    "expert_selections": 41769600,
+    "unique_layer_experts": 23150,
+    "expert_unique_bytes": 58671360000,
+    "conditional_unique_bytes": 58679106400,
+    "ple_requested_bytes": 222771200,
+    "expert_requested_bytes": 105860874240000,
+    "conditional_requested_bytes": 105861097011200,
+    "ple_requested_bytes_per_model_token": 2560.0,
+    "expert_requested_bytes_per_model_token": 1216512000.0,
+    "conditional_requested_bytes_per_model_token": 1216514560.0
+  },
+  "expert_reuse_gap": {
+    "definition": "number of routed-expert selection references between consecutive uses of the same (layer, expert); streaming locality metric",
+    "cold_selections": 23150,
+    "reused_selections": 41746450,
+    "mean_selection_gap": 21576.56557788746,
+    "max_selection_gap": 39678799,
+    "log2_histogram": [
+      {
+        "min": 0,
+        "max": 0,
+        "count": 40603
+      },
+      {
+        "min": 1,
+        "max": 1,
+        "count": 92467
+      },
+      {
+        "min": 2,
+        "max": 3,
+        "count": 386580
+      },
+      {
+        "min": 4,
+        "max": 7,
+        "count": 2006490
+      },
+      {
+        "min": 8,
+        "max": 15,
+        "count": 6104806
+      },
+      {
+        "min": 16,
+        "max": 31,
+        "count": 5168897
+      },
+      {
+        "min": 32,
+        "max": 63,
+        "count": 5322244
+      },
+      {
+        "min": 64,
+        "max": 127,
+        "count": 4953815
+      },
+      {
+        "min": 128,
+        "max": 255,
+        "count": 6091192
+      },
+      {
+        "min": 256,
+        "max": 511,
+        "count": 4361825
+      },
+      {
+        "min": 512,
+        "max": 1023,
+        "count": 2765872
+      },
+      {
+        "min": 1024,
+        "max": 2047,
+        "count": 1642571
+      },
+      {
+        "min": 2048,
+        "max": 4095,
+        "count": 849678
+      },
+      {
+        "min": 4096,
+        "max": 8191,
+        "count": 476695
+      },
+      {
+        "min": 8192,
+        "max": 16383,
+        "count": 280185
+      },
+      {
+        "min": 16384,
+        "max": 32767,
+        "count": 154294
+      },
+      {
+        "min": 32768,
+        "max": 65535,
+        "count": 91125
+      },
+      {
+        "min": 65536,
+        "max": 131071,
+        "count": 41874
+      },
+      {
+        "min": 131072,
+        "max": 262143,
+        "count": 58657
+      },
+      {
+        "min": 262144,
+        "max": 524287,
+        "count": 115713
+      },
+      {
+        "min": 524288,
+        "max": 1048575,
+        "count": 554357
+      },
+      {
+        "min": 1048576,
+        "max": 2097151,
+        "count": 169623
+      },
+      {
+        "min": 2097152,
+        "max": 4194303,
+        "count": 10748
+      },
+      {
+        "min": 4194304,
+        "max": 8388607,
+        "count": 4221
+      },
+      {
+        "min": 8388608,
+        "max": 16777215,
+        "count": 1509
+      },
+      {
+        "min": 16777216,
+        "max": 33554431,
+        "count": 387
+      },
+      {
+        "min": 33554432,
+        "max": 67108863,
+        "count": 22
+      }
+    ]
+  },
+  "expert_layer_working_set": {
+    "unique_experts_per_layer_min": 448,
+    "unique_experts_per_layer_mean": 482.2916666666667,
+    "unique_experts_per_layer_max": 508,
+    "concentration": [
+      {
+        "topk_experts_per_layer": 16,
+        "mean_selection_fraction": 0.28039418620240564,
+        "min_selection_fraction": 0.1828441737531602,
+        "max_selection_fraction": 0.4779395541254884
+      },
+      {
+        "topk_experts_per_layer": 32,
+        "mean_selection_fraction": 0.421644401670114,
+        "min_selection_fraction": 0.3189508159043898,
+        "max_selection_fraction": 0.5969030108021145
+      },
+      {
+        "topk_experts_per_layer": 64,
+        "mean_selection_fraction": 0.6047629855205701,
+        "min_selection_fraction": 0.516620317168467,
+        "max_selection_fraction": 0.7376074465640082
+      },
+      {
+        "topk_experts_per_layer": 128,
+        "mean_selection_fraction": 0.8109393913276645,
+        "min_selection_fraction": 0.7475499885083888,
+        "max_selection_fraction": 0.8882429326591588
+      },
+      {
+        "topk_experts_per_layer": 256,
+        "mean_selection_fraction": 0.9650693327204475,
+        "min_selection_fraction": 0.9457090324063434,
+        "max_selection_fraction": 0.9875281544472535
+      }
+    ]
+  },
+  "phase": {
+    "ple_row_accesses": {
+      "decode": 81328,
+      "prefill": 1310720,
+      "unknown": 272
+    },
+    "expert_selections": {
+      "decode": 2447830,
+      "prefill": 39321770
+    }
+  },
+  "ple_locality": {
+    "accesses": 1392320,
+    "unique_rows": 48415,
+    "working_set_bytes": 7746400,
+    "inter_request_reused_rows": 25767,
+    "reuse_distance": {
+      "cold_accesses": 48415,
+      "definition": "unique PLE rows accessed since the previous access to the same row",
+      "histogram": [
+        {
+          "count": 7144,
+          "max": 63,
+          "min": 32
+        },
+        {
+          "count": 1456,
+          "max": 127,
+          "min": 64
+        },
+        {
+          "count": 1392,
+          "max": 255,
+          "min": 128
+        },
+        {
+          "count": 38480,
+          "max": 511,
+          "min": 256
+        },
+        {
+          "count": 58664,
+          "max": 1023,
+          "min": 512
+        },
+        {
+          "count": 121441,
+          "max": 2047,
+          "min": 1024
+        },
+        {
+          "count": 218016,
+          "max": 4095,
+          "min": 2048
+        },
+        {
+          "count": 375409,
+          "max": 8191,
+          "min": 4096
+        },
+        {
+          "count": 431752,
+          "max": 16383,
+          "min": 8192
+        },
+        {
+          "count": 86103,
+          "max": 32767,
+          "min": 16384
+        },
+        {
+          "count": 4048,
+          "max": 65535,
+          "min": 32768
+        }
+      ],
+      "max_rows": 46934,
+      "p50_rows": 6551,
+      "p95_rows": 16871,
+      "p99_rows": 23743,
+      "reused_accesses": 1343905
+    }
+  },
+  "expert_locality": {
+    "expert_selections": 41769600,
+    "unique_layer_experts": 23150,
+    "reuse_distance": {
+      "exact_stack_reuse_deferred": true,
+      "reason": "full prefill selection batches can contain tens of millions of expert references; H1 computes a streaming reuse-gap distribution instead"
+    }
+  }
+}
