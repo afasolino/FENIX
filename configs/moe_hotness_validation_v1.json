@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_moe_hotness_validation_contract",
+  "experiment": "moe_hotness_validation_v1",
+  "scientific_scope": {
+    "hypothesis": "short_horizon_request_phase_and_domain_conditioned_expert_hotness",
+    "reject_global_union_as_hotness_metric": true,
+    "primary_trace_requirement": "intrinsic_no_prefix_cache_complete_h1_trace",
+    "h3_excluded": true
+  },
+  "model_null": {
+    "expert_count_per_layer": 512,
+    "experts_per_token": 10,
+    "null": "uniform_independent_tokens_without_replacement_within_token"
+  },
+  "request_level": {
+    "topk": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "report_entropy": true,
+    "report_effective_expert_count": true,
+    "report_observed_over_uniform_occupancy": true
+  },
+  "rolling_windows": {
+    "token_windows": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024
+    ],
+    "phases": [
+      "prefill",
+      "decode",
+      "all"
+    ],
+    "max_windows_per_sequence": 64,
+    "topk": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ]
+  },
+  "eam": {
+    "similarities": [
+      "cosine",
+      "jensen_shannon"
+    ],
+    "groups": [
+      "same_stratum",
+      "cross_stratum",
+      "same_session_consecutive",
+      "prefill_vs_decode"
+    ]
+  },
+  "cache_replay": {
+    "domain_strata": [
+      "chat_en",
+      "knowledge",
+      "math",
+      "code",
+      "multilingual"
+    ],
+    "capacities_experts_per_layer": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "budget_gib": [
+      4,
+      7,
+      8,
+      12,
+      16,
+      19
+    ],
+    "policies": [
+      "random_static_demand_fill",
+      "global_lfu_demand_fill",
+      "in_domain_lfu_demand_fill",
+      "leave_one_domain_out_lfu_demand_fill",
+      "token_atomic_lru",
+      "request_history_lfu_demand_fill",
+      "oracle_belady_token_atomic"
+    ],
+    "atomic_event": "one_model_token_topk_expert_set",
+    "first_touch": "compulsory_miss",
+    "transfer_unit": "one_complete_layer_expert_object",
+    "interpretation": "expert_object_transfer_projection_only_no_latency_bandwidth_queueing_or_energy"
+  },
+  "placement_invariance": {
+    "stratum": "code",
+    "hot_experts_values": [
+      16,
+      32,
+      64
+    ],
+    "comparison": "exact_router_selection_sequence_after_removing_timestamps_and_request_ids",
+    "required_equalities": [
+      "prompt_set_sha256",
+      "runtime_image_id",
+      "per_ordinal_prompt_tokens",
+      "per_ordinal_completion_tokens",
+      "per_ordinal_phase_layer_token_sequence_selected_expert_ids"
+    ]
+  }
+}
