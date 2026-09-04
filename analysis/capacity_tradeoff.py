@@ -149,6 +149,35 @@ def _ple_geometry(config_path: Path) -> tuple[int, int, int]:
     return ngram_size, heads_per_ngram, vocab
 
 
+def load_ple_addressable_rows(config_path: Path) -> tuple[int, str]:
+    """Return the versioned PLE row population and its provenance.
+
+    The Qwen3.8 checkpoint does not contain exactly
+    ``(ngram_size - 1) * heads_per_ngram * ngram_vocab_size_base`` rows:
+    per-head prime sizing and final divisibility padding add a small number of
+    rows.  Once the pinned checkpoint has been scanned, the campaign records
+    that exact padded population and it becomes authoritative for capacity
+    accounting.  Older/synthetic configs retain the formula as a fallback.
+    """
+
+    model = _campaign_model(config_path)
+    exact = model.get("ple_addressable_rows")
+    if exact is not None:
+        try:
+            rows = int(exact)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("campaign model ple_addressable_rows is invalid") from exc
+        if rows < 1:
+            raise ValueError("campaign model ple_addressable_rows must be positive")
+        return rows, "versioned_checkpoint_exact_geometry"
+
+    ngram_size, heads_per_ngram, vocab = _ple_geometry(config_path)
+    return (
+        (ngram_size - 1) * heads_per_ngram * vocab,
+        "legacy_base_vocab_formula",
+    )
+
+
 def load_expert_geometry(config_path: Path) -> tuple[int, int]:
     """Return ``(num_hidden_layers, num_experts_per_layer)``."""
 
@@ -186,8 +215,7 @@ def derive_ple_host_bytes(
         )
 
     row_bytes = next(iter(observed_row_bytes))
-    ngram_size, heads_per_ngram, vocab = _ple_geometry(config_path)
-    addressable_rows = (ngram_size - 1) * heads_per_ngram * vocab
+    addressable_rows, _geometry_source = load_ple_addressable_rows(config_path)
     return addressable_rows * row_bytes, row_bytes, addressable_rows
 
 
