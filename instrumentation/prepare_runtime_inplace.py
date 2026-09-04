@@ -242,7 +242,42 @@ def instrument_ple_offload_trace(path: Path) -> None:
 
 
 def instrument_moe_trace(path: Path) -> None:
-    anchor = '''            _update_lru_expert_map_kernel[(1,)](
+    # Large prefill batches bypass the dynamic GPU-LRU path.  Emit their
+    # routed selections at the common apply() path so H1 sees the complete
+    # workload rather than decode only.  Small dynamic-LRU calls keep using
+    # the richer cache-telemetry event below, avoiding duplicate selections.
+    common_anchor = """        cache = self._static_hot_cache
+        if cache is None or x.shape[0] > self._static_hot_cache_max_tokens:
+"""
+    common_replacement = """        cache = self._static_hot_cache
+        _fenix_trace_selection_only = (
+            os.getenv("FENIX_TRACE", "0").lower() in ("1", "true", "yes")
+            and (
+                cache is None
+                or x.shape[0] > self._static_hot_cache_max_tokens
+                or not cache.dynamic_lru
+            )
+        )
+        if _fenix_trace_selection_only:
+            from vllm.fenix_trace_runtime import emit, next_id
+            _fenix_selected = topk_ids.reshape(-1).detach().cpu().tolist()
+            emit("moe_runtime", {
+                "kind": "selection_batch",
+                "trace_scope": "selection_only",
+                "step_id": next_id("moe"),
+                "layer": self.layer_name,
+                "token_count": int(x.shape[0]),
+                "selected_expert_ids": [int(x) for x in _fenix_selected],
+                "cache_hit": None,
+                "transfer_expert_ids": [],
+                "transfer_bytes": 0,
+                "resident_expert_ids": [],
+            })
+        if cache is None or x.shape[0] > self._static_hot_cache_max_tokens:
+"""
+    replace_once(path, common_anchor, common_replacement)
+
+    anchor = """            _update_lru_expert_map_kernel[(1,)](
                 global_ids,
                 cache.cold_map,
                 cache.hot_map,
@@ -258,8 +293,8 @@ def instrument_moe_trace(path: Path) -> None:
                 capacity_block=triton.next_power_of_2(capacity),
                 num_warps=4,
             )
-'''
-    extra = '''            if os.getenv("FENIX_TRACE","0").lower() in ("1","true","yes"):
+"""
+    extra = """            if os.getenv("FENIX_TRACE","0").lower() in ("1","true","yes"):
                 from vllm.fenix_trace_runtime import emit, next_id
                 _selected = global_ids.detach().cpu().tolist()
                 _miss_slots = cache.miss_slots[:num_ids].detach().cpu().tolist()
@@ -278,16 +313,18 @@ def instrument_moe_trace(path: Path) -> None:
                     if _t is not None and _t.shape[0] == capacity:
                         _bytes_per_slot += _t[0].numel() * _t.element_size()
                 emit("moe_runtime", {
+                    "kind":"selection_batch",
+                    "trace_scope":"selection_and_runtime_cache",
                     "step_id":next_id("moe"),"layer":self.layer_name,
+                    "token_count":int(x.shape[0]),
                     "selected_expert_ids":[int(x) for x in _selected],
                     "cache_hit":[int(s)<0 for s in _miss_slots],
                     "transfer_expert_ids":_transfer,
                     "transfer_bytes":int(len(_transfer)*_bytes_per_slot),
                     "resident_expert_ids":[int(x) for x in _resident if int(x)>=0],
                 })
-'''
+"""
     replace_once(path, anchor, anchor + extra)
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()

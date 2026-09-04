@@ -234,7 +234,36 @@ def _normalize_exact_case(
     ple_analysis = ple_locality.analyze_trace(
         ple_out, _trace_capacities(campaign_path)
     )
-    expert_analysis = expert_locality.analyze_trace(moe_raw)
+    if any(
+        record.get("trace_scope") == "selection_only"
+        for record in moe_records
+    ):
+        expert_keys: set[tuple[int, int]] = set()
+        expert_selections = 0
+        for record in moe_records:
+            layer = expert_locality.parse_layer_id(record["layer"])
+            selected = [
+                int(value)
+                for value in record.get("selected_expert_ids", [])
+            ]
+            expert_selections += len(selected)
+            expert_keys.update((layer, expert) for expert in selected)
+        expert_analysis = {
+            "schema_version": 2,
+            "evidence_kind": "local_measured_trace_analysis",
+            "expert_selections": expert_selections,
+            "unique_layer_experts": len(expert_keys),
+            "reuse_distance": {
+                "exact_stack_reuse_deferred": True,
+                "reason": (
+                    "full prefill selection batches can contain tens of "
+                    "millions of expert references; H1 computes a streaming "
+                    "reuse-gap distribution instead"
+                ),
+            },
+        }
+    else:
+        expert_analysis = expert_locality.analyze_trace(moe_raw)
     trace_capture.write_json(case_dir / "joint_characterization.json", joint)
     trace_capture.write_json(case_dir / "ple_locality.json", ple_analysis)
     trace_capture.write_json(case_dir / "expert_locality.json", expert_analysis)
