@@ -44,8 +44,23 @@ def verify(server_log: Path, policy_path: Path) -> dict[str, Any]:
             f"expected exactly one podman/vLLM launch line; observed={len(command_lines)}"
         )
     tokens = shlex.split(command_lines[0])
+
+    try:
+        serve_index = tokens.index("serve")
+    except ValueError as exc:
+        raise TracePolicyError("cannot establish vLLM serve position") from exc
+    if serve_index + 1 >= len(tokens) or tokens[serve_index + 1].startswith("--"):
+        raise TracePolicyError(
+            "vLLM model must be the first positional argument after serve"
+        )
+    model_token = tokens[serve_index + 1]
+
     if "--no-enable-prefix-caching" not in tokens:
         raise TracePolicyError("server was not launched with --no-enable-prefix-caching")
+    if tokens.index("--no-enable-prefix-caching") <= serve_index + 1:
+        raise TracePolicyError(
+            "--no-enable-prefix-caching must follow the model positional argument"
+        )
     if "--enable-prefix-caching" in tokens:
         raise TracePolicyError("server launch contains contradictory --enable-prefix-caching")
     if "FENIX_PREFIX_CACHING=0" not in tokens:
@@ -64,6 +79,7 @@ def verify(server_log: Path, policy_path: Path) -> dict[str, Any]:
         "schema_version": 1,
         "artifact_kind": "fenix_h1_h2_trace_execution_verification",
         "prefix_caching": "disabled",
+        "vllm_model_positional": model_token,
         "trace_values": list(launch.trace_values),
         "runtime_images": list(launch.runtime_images),
         "server_max_model_len": observed_max_len,

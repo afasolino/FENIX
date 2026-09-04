@@ -56,7 +56,11 @@ def build_policy_command(
         serve_index = command.index("serve", image_index + 2)
     except ValueError as exc:
         raise RuntimeError("vLLM serve token is missing from constructed command") from exc
-    command.insert(serve_index + 1, "--no-enable-prefix-caching")
+
+    # vLLM requires the model to be the first positional argument after `serve`.
+    if serve_index + 1 >= len(command) or command[serve_index + 1].startswith("--"):
+        raise RuntimeError("vLLM model positional argument is missing after serve")
+    command.insert(serve_index + 2, "--no-enable-prefix-caching")
     return environment, command
 
 
