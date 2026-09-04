@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_h2_workload_robustness_contract",
+  "seed": 20260904,
+  "scientific_scope": {
+    "purpose": "falsify_or_support_h1_h2_across_natural_domain_language_session_and_context_variation",
+    "homogeneous_v1_role": "controlled_homogeneous_systems_domain_reference_only",
+    "h1": "measured_qwen38_ple_and_moe_locality_from_exact_c1_traces",
+    "h2": "trace_projection_of_conditional_state_capacity_and_logical_lower_tier_traffic",
+    "h3_excluded": true,
+    "a6000_role": "real_qwen_execution_oracle_not_edge_emulator",
+    "budget_scope": "conditional_state_cache_capacity_not_total_device_dram"
+  },
+  "trace": {
+    "concurrency": 1,
+    "temperature": 0.0,
+    "default_max_output_tokens": 128,
+    "max_input_tokens": 7680,
+    "server_max_model_len": 8192,
+    "repetitions": 1,
+    "correlation_mode": "exact_request_correlation",
+    "strata_order": [
+      "chat_en",
+      "knowledge",
+      "math",
+      "code",
+      "multilingual",
+      "session",
+      "long_context_8k"
+    ]
+  },
+  "data_sources": {
+    "wildchat": {
+      "repo_id": "allenai/WildChat-1M",
+      "revision": "main",
+      "split": "train",
+      "license": "ODC-BY",
+      "paper": "arXiv:2405.01470"
+    },
+    "mmlu_pro": {
+      "repo_id": "TIGER-Lab/MMLU-Pro",
+      "revision": "main",
+      "config": "default",
+      "split": "test",
+      "license": "MIT",
+      "paper": "arXiv:2406.01574"
+    },
+    "math_500": {
+      "repo_id": "HuggingFaceH4/MATH-500",
+      "revision": "main",
+      "config": "default",
+      "split": "test",
+      "license": "MIT",
+      "origin": "MATH-500 / Let's Verify Step by Step split"
+    },
+    "humaneval": {
+      "repo_id": "openai/openai_humaneval",
+      "revision": "main",
+      "config": "openai_humaneval",
+      "split": "test",
+      "license": "MIT",
+      "paper": "arXiv:2107.03374"
+    },
+    "mmmlu": {
+      "repo_id": "openai/MMMLU",
+      "revision": "main",
+      "split": "test",
+      "license": "MIT",
+      "paper": "arXiv:2009.03300"
+    },
+    "longbench_v2": {
+      "repo_id": "zai-org/LongBench-v2",
+      "revision": "main",
+      "config": "default",
+      "split": "train",
+      "license": "apache-2.0",
+      "paper": "arXiv:2412.15204"
+    }
+  },
+  "strata": {
+    "chat_en": {
+      "source": "wildchat",
+      "selector": "independent_english_user_turn",
+      "requests": 24,
+      "min_characters": 80,
+      "max_characters": 12000,
+      "max_output_tokens": 128
+    },
+    "knowledge": {
+      "source": "mmlu_pro",
+      "selector": "balanced_question_across_categories",
+      "requests": 24,
+      "max_output_tokens": 128
+    },
+    "math": {
+      "source": "math_500",
+      "selector": "balanced_problem_across_subject_and_level",
+      "requests": 24,
+      "max_output_tokens": 128
+    },
+    "code": {
+      "source": "humaneval",
+      "selector": "native_python_function_prompt",
+      "requests": 24,
+      "max_output_tokens": 128
+    },
+    "multilingual": {
+      "source": "mmmlu",
+      "selector": "balanced_locale_question",
+      "locales": [
+        "AR_XY",
+        "ES_LA",
+        "HI_IN",
+        "IT_IT",
+        "JA_JP",
+        "ZH_CN"
+      ],
+      "requests_per_locale": 4,
+      "requests": 24,
+      "max_output_tokens": 128
+    },
+    "session": {
+      "source": "wildchat",
+      "selector": "chronological_multiturn_accumulated_history",
+      "sessions": 6,
+      "turns_per_session": 4,
+      "requests": 24,
+      "max_output_tokens": 128,
+      "overlength_policy": "drop_oldest_context_to_fit"
+    },
+    "long_context_8k": {
+      "source": "longbench_v2",
+      "selector": "natural_context_plus_question_choices",
+      "requests": 8,
+      "target_input_tokens": 7168,
+      "minimum_input_tokens": 6656,
+      "context_character_cap": 180000,
+      "max_output_tokens": 64,
+      "overlength_policy": "truncate_context_prefix_preserve_question_and_choices"
+    }
+  },
+  "sampling": {
+    "streaming": true,
+    "shuffle_buffer_size": 10000,
+    "max_rows_scanned_per_source": 100000,
+    "selection_rule": "dataset_stream_shuffle_with_fixed_seed_then_first_eligible",
+    "source_revision_rule": "resolve_declared_revision_to_immutable_hub_sha_before_iteration",
+    "freeze_selected_corpus": true
+  },
+  "h1": {
+    "require_all_layers_per_request": true,
+    "require_moe_token_equivalence_with_ple": true,
+    "require_ple_autoregressive_token_equivalence": true,
+    "expert_concentration_topk": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "report_phases": [
+      "prefill",
+      "decode",
+      "unknown"
+    ],
+    "working_set_growth_request_fractions": [
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "cross_stratum_metrics": [
+      "ple_jaccard",
+      "expert_jaccard",
+      "expert_top128_jaccard",
+      "expert_js_divergence"
+    ],
+    "session_metrics": [
+      "consecutive_turn_ple_jaccard",
+      "consecutive_turn_expert_jaccard"
+    ]
+  },
+  "h2": {
+    "volatile_cache_budgets_gib": [
+      4,
+      7,
+      8,
+      12,
+      16,
+      19
+    ],
+    "object_granularity": {
+      "ple": "one_physical_row",
+      "expert": "one_complete_layer_expert_slot"
+    },
+    "policies": [
+      "static_frequency_demand_fill",
+      "adaptive_request_epoch_lfu",
+      "oracle_frequency_demand_fill"
+    ],
+    "cross_domain_strata": [
+      "chat_en",
+      "knowledge",
+      "math",
+      "code",
+      "multilingual"
+    ],
+    "structural_holdouts": [
+      "session",
+      "long_context_8k"
+    ],
+    "in_domain_split": "even_ordinal_train_odd_ordinal_holdout",
+    "leave_one_domain_out": true,
+    "mixed_online_orderings": [
+      "domain_blocked",
+      "round_robin",
+      "seeded_random"
+    ],
+    "first_touch": "demand_fill_compulsory_miss",
+    "shared_cache_capacity": true,
+    "can_establish_h3": false,
+    "can_establish_edge_latency_or_energy": false
+  },
+  "measured_geometry": {
+    "expert_slot_bytes": 2534400,
+    "expert_slot_bytes_evidence_kind": "local_measured_trace_analysis",
+    "expert_slot_bytes_origin": "A6000_WNA16_complete_expert_hot_cache_fill",
+    "ple_row_bytes_expected": 160
+  },
+  "extended_context_feasibility": {
+    "primary_campaign_limit": 8192,
+    "predeclared_follow_on_input_tokens": [
+      32768,
+      65536,
+      131072
+    ],
+    "status": "not_primary_until_runtime_capacity_is_requalified",
+    "reason": "avoid_changing_runtime_max_model_len_inside_primary_h1_h2_campaign"
+  }
+}
