@@ -235,7 +235,7 @@ def _normalize_exact_case(
         ple_out, _trace_capacities(campaign_path)
     )
     if any(
-        record.get("trace_scope") == "selection_only"
+        record.get("trace_scope") == "router_all_layers"
         for record in moe_records
     ):
         expert_keys: set[tuple[int, int]] = set()

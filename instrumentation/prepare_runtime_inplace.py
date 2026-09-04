@@ -242,89 +242,41 @@ def instrument_ple_offload_trace(path: Path) -> None:
 
 
 def instrument_moe_trace(path: Path) -> None:
-    # Large prefill batches bypass the dynamic GPU-LRU path.  Emit their
-    # routed selections at the common apply() path so H1 sees the complete
-    # workload rather than decode only.  Small dynamic-LRU calls keep using
-    # the richer cache-telemetry event below, avoiding duplicate selections.
-    common_anchor = """        cache = self._static_hot_cache
-        if cache is None or x.shape[0] > self._static_hot_cache_max_tokens:
+    """Trace routed expert selections before backend/residency dispatch."""
+
+    anchor = """        assert not self.quant_method.is_monolithic
+
+        # Modular kernels use pre-computed routing
+        return self.quant_method.apply(
 """
-    common_replacement = """        cache = self._static_hot_cache
-        _fenix_trace_selection_only = (
-            os.getenv("FENIX_TRACE", "0").lower() in ("1", "true", "yes")
-            and (
-                cache is None
-                or x.shape[0] > self._static_hot_cache_max_tokens
-                or not cache.dynamic_lru
-            )
-        )
-        if _fenix_trace_selection_only:
+    replacement = """        assert not self.quant_method.is_monolithic
+
+        # H1 must observe routing independently of expert placement/backend.
+        # RoutedExperts.forward_modular() receives final top-k IDs before
+        # quant_method.apply() dispatches to the actual expert backend.
+        if __import__("os").getenv("FENIX_TRACE", "0").lower() in (
+            "1", "true", "yes"
+        ):
             from vllm.fenix_trace_runtime import emit, next_id
+
             _fenix_selected = topk_ids.reshape(-1).detach().cpu().tolist()
             emit("moe_runtime", {
                 "kind": "selection_batch",
-                "trace_scope": "selection_only",
-                "step_id": next_id("moe"),
+                "trace_scope": "router_all_layers",
+                "step_id": next_id("moe_router"),
                 "layer": self.layer_name,
                 "token_count": int(x.shape[0]),
-                "selected_expert_ids": [int(x) for x in _fenix_selected],
+                "selected_expert_ids": [int(value) for value in _fenix_selected],
                 "cache_hit": None,
                 "transfer_expert_ids": [],
                 "transfer_bytes": 0,
                 "resident_expert_ids": [],
             })
-        if cache is None or x.shape[0] > self._static_hot_cache_max_tokens:
-"""
-    replace_once(path, common_anchor, common_replacement)
 
-    anchor = """            _update_lru_expert_map_kernel[(1,)](
-                global_ids,
-                cache.cold_map,
-                cache.hot_map,
-                cache.slot_global_ids,
-                cache.slot_ages,
-                cache.clock,
-                cache.miss_local_ids,
-                cache.miss_slots,
-                num_ids=num_ids,
-                global_num_experts=cache.hot_map.numel(),
-                capacity=capacity,
-                id_block=triton.next_power_of_2(num_ids),
-                capacity_block=triton.next_power_of_2(capacity),
-                num_warps=4,
-            )
+        # Modular kernels use pre-computed routing
+        return self.quant_method.apply(
 """
-    extra = """            if os.getenv("FENIX_TRACE","0").lower() in ("1","true","yes"):
-                from vllm.fenix_trace_runtime import emit, next_id
-                _selected = global_ids.detach().cpu().tolist()
-                _miss_slots = cache.miss_slots[:num_ids].detach().cpu().tolist()
-                _transfer = [int(_selected[_i]) for _i,_s in enumerate(_miss_slots) if int(_s) >= 0]
-                _resident = cache.slot_global_ids.detach().cpu().tolist()
-                _cache_tensors = [
-                    getattr(cache, _name, None)
-                    for _name in (
-                        "w13_weight","w2_weight","w13_scale","w2_scale",
-                        "w13_zp","w2_zp","w13_g_idx","w2_g_idx",
-                        "w13_sort","w2_sort"
-                    )
-                ]
-                _bytes_per_slot = 0
-                for _t in _cache_tensors:
-                    if _t is not None and _t.shape[0] == capacity:
-                        _bytes_per_slot += _t[0].numel() * _t.element_size()
-                emit("moe_runtime", {
-                    "kind":"selection_batch",
-                    "trace_scope":"selection_and_runtime_cache",
-                    "step_id":next_id("moe"),"layer":self.layer_name,
-                    "token_count":int(x.shape[0]),
-                    "selected_expert_ids":[int(x) for x in _selected],
-                    "cache_hit":[int(s)<0 for s in _miss_slots],
-                    "transfer_expert_ids":_transfer,
-                    "transfer_bytes":int(len(_transfer)*_bytes_per_slot),
-                    "resident_expert_ids":[int(x) for x in _resident if int(x)>=0],
-                })
-"""
-    replace_once(path, anchor, anchor + extra)
+    replace_once(path, anchor, replacement)
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -371,8 +323,7 @@ def main() -> int:
     manifest["after"][str(ple_offload.relative_to(root))] = sha256(ple_offload)  # type: ignore[index]
 
     moe = root / (
-        "runtime/vllm-overlay/model_executor/layers/quantization/"
-        "compressed_tensors/compressed_tensors_moe/compressed_tensors_moe_wna16.py"
+        "runtime/vllm-overlay/model_executor/layers/fused_moe/routed_experts.py"
     )
     manifest["before"][str(moe.relative_to(root))] = sha256(moe)  # type: ignore[index]
     instrument_moe_trace(moe)

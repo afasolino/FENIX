@@ -48,5 +48,11 @@
     "tie_break_policy": "max_saved_bytes_then_min_used_bytes_then_min_expert_objects",
     "can_establish_h3": false,
     "can_establish_edge_latency_or_energy": false
+  },
+  "measured_geometry": {
+    "expert_slot_bytes": 2534400,
+    "expert_slot_bytes_evidence_kind": "local_measured_trace_analysis",
+    "expert_slot_bytes_origin": "pre-H1/H2 A6000 WNA16 complete GPU hot-cache fill measurement",
+    "expert_slot_bytes_interpretation": "one complete runtime layer-expert object; reused as measured geometry, not re-derived from backend-specific H1 routing events"
   }
 }

@@ -99,6 +99,7 @@ def _plan(replay_contract_path: Path) -> dict[str, Any]:
         "required_trace_cases": contract["required_trace_cases"],
         "h1": contract["h1"],
         "h2": contract["h2"],
+        "measured_geometry": contract.get("measured_geometry"),
         "scientific_scope": contract["scientific_scope"],
     }
 
@@ -114,6 +115,18 @@ def run_pipeline(
     case_dirs = discover_exact_cases(trace_root, replay_contract_path)
     contract = load_replay_contract(replay_contract_path)
     topk = [int(value) for value in contract["h1"]["expert_concentration_topk"]]
+    measured_geometry = contract.get("measured_geometry")
+    if not isinstance(measured_geometry, dict):
+        raise H1H2CampaignError("measured_geometry is missing from H1/H2 contract")
+    if expert_slot_bytes is None:
+        try:
+            expert_slot_bytes = int(measured_geometry["expert_slot_bytes"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise H1H2CampaignError(
+                "measured_geometry.expert_slot_bytes is invalid"
+            ) from exc
+    if expert_slot_bytes <= 0:
+        raise H1H2CampaignError("expert slot bytes must be positive")
 
     h1_root = out_root / "h1"
     h2_root = out_root / "h2"
@@ -176,6 +189,7 @@ def run_pipeline(
             "path": str(replay_contract_path),
             "sha256": sha256_file(replay_contract_path),
         },
+        "measured_geometry": contract.get("measured_geometry"),
         "h1": {
             "evidence_kind": "local_measured_trace_analysis",
             "case_count": len(h1_results),
