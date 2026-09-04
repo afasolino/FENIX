@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_h2_trace_execution_policy",
+  "purpose": "intrinsic_conditional_state_working_set_measurement",
+  "prefix_caching": "disabled",
+  "trace_required": true,
+  "concurrency": 1,
+  "server_max_model_len": 8192,
+  "interpretation": {
+    "primary_h1": "every prompt token must execute through PLE and all routed MoE layers",
+    "prefix_cache_enabled_runs": "served_system_control_only_not_primary_intrinsic_h1",
+    "reason": "automatic prefix caching can skip repeated prompt prefixes and therefore breaks prompt_plus_decode versus executed_PLE_token equivalence"
+  }
+}
