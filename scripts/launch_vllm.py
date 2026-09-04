@@ -13,6 +13,7 @@ from pathlib import Path
 
 IMAGE = "fenix-qwen38:locked"
 SERVED_MODEL_NAME = "qwen3.8-flash-next"
+PLE_STORAGE_MODES = ("resident", "mmap")
 
 
 def parse_gpu_ids(raw: str) -> list[str]:
@@ -27,7 +28,20 @@ def build_environment(
     trace_enabled: bool,
     runtime_directory: Path,
     expandable_segments: bool = True,
+    *,
+    ple_storage_mode: str = "resident",
+    ple_bank_manifest: Path | None = None,
 ) -> dict[str, str]:
+    if ple_storage_mode not in PLE_STORAGE_MODES:
+        raise ValueError(
+            f"unsupported PLE storage mode {ple_storage_mode!r}; "
+            f"expected one of {PLE_STORAGE_MODES}"
+        )
+    if ple_storage_mode == "mmap" and ple_bank_manifest is None:
+        raise ValueError("PLE mmap mode requires a bank manifest")
+    if ple_storage_mode == "resident" and ple_bank_manifest is not None:
+        raise ValueError("resident PLE mode does not accept a bank manifest")
+
     environment = {
         "VLLM_PLE_CPU_OFFLOAD": "1",
         "VLLM_WNA16_DYNAMIC_LRU": "1",
@@ -36,6 +50,7 @@ def build_environment(
         "VLLM_WNA16_STATIC_HOT_CACHE_MAX_TOKENS": "16",
         "FENIX_TRACE": "1" if trace_enabled else "0",
         "FENIX_TRACE_DIR": "/fenix-traces",
+        "FENIX_PLE_STORAGE_MODE": ple_storage_mode,
         "PYTORCH_CUDA_ALLOC_CONF": (
             "expandable_segments:True"
             if expandable_segments
@@ -43,6 +58,15 @@ def build_environment(
         ),
         "VLLM_PLE_OFFLOAD_READY_TIMEOUT": "1200",
     }
+
+    if ple_storage_mode == "mmap":
+        assert ple_bank_manifest is not None
+        environment["FENIX_PLE_BANK_MANIFEST"] = (
+            f"/fenix-ple-bank/{ple_bank_manifest.name}"
+        )
+        environment["FENIX_PLE_MODEL_INDEX"] = (
+            "/model/model.safetensors.index.json"
+        )
 
     ranking = runtime_directory / "configs/static_hot_cache_rankings.json"
     if ranking.exists():
@@ -69,6 +93,8 @@ def build_command(
     trace_enabled: bool,
     runtime_image: str = IMAGE,
     expandable_segments: bool = True,
+    ple_storage_mode: str = "resident",
+    ple_bank_manifest: Path | None = None,
 ) -> tuple[dict[str, str], list[str]]:
     tensor_parallel_size = len(gpu_ids)
     environment = build_environment(
@@ -76,6 +102,8 @@ def build_command(
         trace_enabled,
         runtime_directory,
         expandable_segments,
+        ple_storage_mode=ple_storage_mode,
+        ple_bank_manifest=ple_bank_manifest,
     )
     environment["CUDA_VISIBLE_DEVICES"] = ",".join(gpu_ids)
 
@@ -107,6 +135,15 @@ def build_command(
         "-v",
         f"{trace_directory}:/fenix-traces",
     ]
+
+    if ple_storage_mode == "mmap":
+        assert ple_bank_manifest is not None
+        command.extend(
+            [
+                "-v",
+                f"{ple_bank_manifest.parent}:/fenix-ple-bank:ro",
+            ]
+        )
 
     for key, value in environment.items():
         command.extend(["-e", f"{key}={value}"])
@@ -211,6 +248,16 @@ def main() -> int:
     parser.add_argument("--max-num-seqs", type=int, default=1)
     parser.add_argument("--max-num-batched-tokens", type=int, default=2048)
     parser.add_argument("--kv-cache-memory-bytes", type=int, default=1073741824)
+    parser.add_argument(
+        "--ple-storage-mode",
+        choices=PLE_STORAGE_MODES,
+        default="resident",
+    )
+    parser.add_argument(
+        "--ple-bank-manifest",
+        type=Path,
+        help="required only for --ple-storage-mode mmap",
+    )
     parser.add_argument("--trace", action="store_true")
     parser.add_argument("--image", default=IMAGE)
     parser.add_argument(
@@ -224,6 +271,11 @@ def main() -> int:
     model_directory = args.model_dir.resolve()
     runtime_directory = (root / "external/runtime/qwen38").resolve()
     trace_directory = (root / "traces/raw").resolve()
+    ple_bank_manifest = (
+        args.ple_bank_manifest.resolve()
+        if args.ple_bank_manifest is not None
+        else None
+    )
 
     if not (model_directory / "model.safetensors.index.json").exists():
         print("checkpoint index is missing", file=sys.stderr)
@@ -231,23 +283,42 @@ def main() -> int:
     if not (runtime_directory / ".git").is_dir():
         print("pinned runtime checkout is missing", file=sys.stderr)
         return 2
+    if args.ple_storage_mode == "mmap":
+        if ple_bank_manifest is None or not ple_bank_manifest.is_file():
+            print(
+                "PLE mmap mode requires an existing --ple-bank-manifest",
+                file=sys.stderr,
+            )
+            return 2
+    elif ple_bank_manifest is not None:
+        print(
+            "--ple-bank-manifest is only valid with --ple-storage-mode mmap",
+            file=sys.stderr,
+        )
+        return 2
 
-    environment, command = build_command(
-        model_directory=model_directory,
-        runtime_directory=runtime_directory,
-        trace_directory=trace_directory,
-        gpu_ids=args.gpus,
-        port=args.port,
-        cpu_offload_gib=args.cpu_offload_gb,
-        hot_experts=args.hot_experts,
-        max_model_len=args.max_model_len,
-        max_num_seqs=args.max_num_seqs,
-        max_num_batched_tokens=args.max_num_batched_tokens,
-        kv_cache_memory_bytes=args.kv_cache_memory_bytes,
-        trace_enabled=args.trace,
-        runtime_image=args.image,
-        expandable_segments=not args.disable_expandable_segments,
-    )
+    try:
+        environment, command = build_command(
+            model_directory=model_directory,
+            runtime_directory=runtime_directory,
+            trace_directory=trace_directory,
+            gpu_ids=args.gpus,
+            port=args.port,
+            cpu_offload_gib=args.cpu_offload_gb,
+            hot_experts=args.hot_experts,
+            max_model_len=args.max_model_len,
+            max_num_seqs=args.max_num_seqs,
+            max_num_batched_tokens=args.max_num_batched_tokens,
+            kv_cache_memory_bytes=args.kv_cache_memory_bytes,
+            trace_enabled=args.trace,
+            runtime_image=args.image,
+            expandable_segments=not args.disable_expandable_segments,
+            ple_storage_mode=args.ple_storage_mode,
+            ple_bank_manifest=ple_bank_manifest,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
     emit_launch_preamble(environment, command)
 
