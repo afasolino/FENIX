@@ -1,0 +1,107 @@
+name: H3 v6 integration
+
+on:
+  push:
+    branches: ["study/h3-conventional-hierarchy-v6"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-and-authoritative-base:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout H3 development bundle
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test/build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libaio-dev
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Verify sealed bundle in isolation
+        run: python verify_bundle.py
+
+      - name: Clone exact authoritative FENIX base
+        run: |
+          git clone https://github.com/afasolino/FENIX.git /tmp/fenix-authoritative
+          cd /tmp/fenix-authoritative
+          git checkout --detach 8b8694647840e5af73fd4e1fb1275d0b15c19056
+          test "$(git rev-parse HEAD)" = "8b8694647840e5af73fd4e1fb1275d0b15c19056"
+          test -z "$(git status --porcelain)"
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pytest
+
+      - name: Apply and repository-qualify H3 on exact base
+        env:
+          FENIX_ROOT: /tmp/fenix-authoritative
+          FENIX_PYTHON: /tmp/fenix-authoritative/.venv/bin/python
+        run: bash install.sh
+
+      - name: Commit integration tree for provenance gates
+        run: |
+          cd /tmp/fenix-authoritative
+          git config user.name "FENIX H3 CI"
+          git config user.email "fenix-h3-ci@users.noreply.github.com"
+          git add -- $(cat "$GITHUB_WORKSPACE/INSTALL_FILES.txt")
+          git diff --cached --check
+          git commit -m "CI integrate H3 v6 scientific consistency hardening"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor 8b8694647840e5af73fd4e1fb1275d0b15c19056 HEAD
+
+      - name: Build exact pinned mature tools
+        run: |
+          cd /tmp/fenix-authoritative
+          .venv/bin/python -m scripts.h3_campaign bootstrap-tools --jobs 2
+
+      - name: Qualify tool identities and LPDDR profile
+        run: |
+          cd /tmp/fenix-authoritative
+          mkdir -p results/raw/h3-ci
+          .venv/bin/python -m scripts.h3_campaign qualify-tools \
+            --out results/raw/h3-ci/tool-qualification.json
+
+      - name: Reduced real Ramulator generic-regime smoke
+        run: |
+          cd /tmp/fenix-authoritative
+          PYTHONPATH=. .runtime/h3-tools/ramulator-venv/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          from analysis.h3.lpddr import run_address_trace_point, validate_resolved_profile
+
+          contract = json.loads(Path("configs/h3/contract_v6.json").read_text())
+          lpddr = json.loads(json.dumps(contract["lpddr"]))
+          # Preserve production geometry/timing; reduce only CI request volume.
+          lpddr["trace_regimes"]["ple_random_burst"]["objects"] = 64
+          lpddr["trace_regimes"]["expert_burst"]["bursts"] = 2
+          for ncs in (1, 2, 4):
+              for regime in ("ple_random_burst", "expert_burst"):
+                  point = run_address_trace_point(
+                      lpddr, ncs=ncs, regime=regime, operation_mode="mixed"
+                  )
+                  assert point["requests_served"] > 0
+                  assert point["bandwidth_gb_s"] > 0
+                  validate_resolved_profile(
+                      point["resolved_org"], point["resolved_timing"], lpddr, ncs
+                  )
+          print("Ramulator generic-regime integration smoke passed")
+          PY
+
+      - name: Final repository gate
+        run: |
+          cd /tmp/fenix-authoritative
+          .venv/bin/python scripts/check_repository.py
+          .venv/bin/python -m pytest -q tests/test_h3_conventional_hierarchy_v6.py
+          git diff --check
+          test -z "$(git status --porcelain)"

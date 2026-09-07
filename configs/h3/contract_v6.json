@@ -1,0 +1,360 @@
+{
+  "artifact_kind": "fenix_h3_conventional_hierarchy_contract",
+  "capacity_gib": [
+    4,
+    7,
+    8,
+    12,
+    16,
+    19
+  ],
+  "decision_gate": {
+    "between_thresholds": "inconclusive",
+    "campaign_requirements": {
+      "exact_matrix_required": true,
+      "ordinary_strata": [
+        "chat_en",
+        "knowledge",
+        "math",
+        "code",
+        "multilingual"
+      ],
+      "phase_semantics": "prefill/decode promotion requires independent phase-filtered residency, fio, and actual-H3 Ramulator artifacts; embedded full-run phase projections do not promote",
+      "require_phase_decisions": true,
+      "required_ordinary_strata": [
+        "chat_en",
+        "knowledge",
+        "math",
+        "code",
+        "multilingual"
+      ],
+      "required_phases": [
+        "prefill",
+        "decode"
+      ],
+      "required_strata": [
+        "session",
+        "long_context_8k"
+      ],
+      "single_campaign_fingerprint_required": true
+    },
+    "conventional_sufficient_max_penalty_fraction": 0.05,
+    "end_to_end_inference_claim_allowed": false,
+    "memory_gap_min_penalty_fraction": 0.1,
+    "scope": "conditional_memory_service_layer",
+    "strong_conventional_baselines": [
+      "adaptive_size_aware_lfu",
+      "service_time_optimized_offline_frequency_bound",
+      "deterministic_PLE_prefetch_sensitivity",
+      "PLE_and_expert_perfect_prefetch_sensitivity",
+      "linux_pagecache",
+      "QD32_high_MLP_storage_envelope",
+      "actual_H3_LPDDR_trace_calibration",
+      "paired_nonoverlapping_fio_source_windows",
+      "collision_free_actual_H3_LPDDR_address_embedding",
+      "actual_H3_LPDDR_multi_mapping_oracle_envelope",
+      "measured_prefetch_slack_scheduler_feasibility"
+    ],
+    "threshold_semantics": "predeclared engineering-relevance thresholds, not literature constants"
+  },
+  "energy": {
+    "energy_superiority_claim_allowed": false,
+    "lpddr_core": "DRAMPower_vendor_datasheet_envelope_secondary_only",
+    "lpddr_interface_phy": "unresolved",
+    "storage_absolute_energy": "unresolved"
+  },
+  "geometry": {
+    "expert_storage_stride_bytes": 2535424,
+    "expert_useful_bytes": 2534400,
+    "experts_per_layer": 512,
+    "experts_per_token": 10,
+    "layers": 48,
+    "ple_addressable_rows": 320001536,
+    "ple_data_bytes": 51200245760,
+    "ple_data_sha256": "b070f9644adf93794d8a1030584ab705809387e64396a9327a68fa3a3a6666b3",
+    "ple_dtype": "F8_E4M3",
+    "ple_heads": 16,
+    "ple_row_bytes": 160,
+    "ple_shard_count": 128,
+    "storage_page_bytes": 4096
+  },
+  "lpddr": {
+    "actual_trace_address_mapping": "multiple_collision_free_sample_local_layouts_no_modulo_aliasing",
+    "actual_trace_address_mapping_fail_closed": true,
+    "actual_trace_address_mappings": [
+      "dense_first_touch",
+      "hashed_bank_spread"
+    ],
+    "actual_trace_calibration_required_for_promotion": true,
+    "actual_trace_channel_index": 0,
+    "actual_trace_sample_transactions": 200000,
+    "actual_trace_seed": 20260906,
+    "address_layout_uncertainty_semantics": "dense-first-touch and hashed-bank-spread injective layouts bound sample-local physical-layout uncertainty; neither is claimed to reproduce the original >32-GiB physical address geometry",
+    "aggregate_scaling_assumption": "16 independent x16 logical channels; intentionally optimistic conventional baseline",
+    "aggregate_theoretical_bandwidth_gb_s": 204.8,
+    "calibration_regimes": [
+      "streaming",
+      "ple_random_burst",
+      "expert_burst"
+    ],
+    "channel_width_bits": 16,
+    "data_rate_mt_s": 6400,
+    "frontend_clock_ratio": 1,
+    "logical_channels": 16,
+    "mixed_read_fraction": 0.5,
+    "ncs_values": [
+      1,
+      2,
+      4
+    ],
+    "org_preset": "LPDDR5_8Gb_x16",
+    "platform_capacity_gib": 32,
+    "platform_semantics": "component-wise optimistic 32-GiB/204.8-GB/s LPDDR5-class envelope; not a measured Orin hierarchy and not physical capacity for the all-LPDDR counterfactual state",
+    "promotion_semantics": "policy/stratum/capacity/phase-specific actual-H3 sampled logical-read/fill Ramulator replay under every contract-declared collision-free address-layout sensitivity; promotion uses the envelope across mappings and nCS points",
+    "ramulator_standard": "LPDDR5",
+    "ramulator_stream_requests": 1000000,
+    "ramulator_warmup_cycles": 0,
+    "ranks_per_channel": 2,
+    "refresh_enabled": true,
+    "request_bytes": 32,
+    "resolved_timing_required": {
+      "nCL": 17,
+      "nCWL": 9,
+      "nFAW": 16,
+      "nRAS": 34,
+      "nRC": 49,
+      "nRCD": 15,
+      "nREFI": 3124,
+      "nREFIpb": 390,
+      "nRFC": 168,
+      "nRFCpb": 96,
+      "nRP": 15,
+      "nRPab": 17,
+      "nRTP": 6,
+      "nWR": 28,
+      "rate": 6400,
+      "tCK_ps": 1250
+    },
+    "sensitivity": [
+      "nCS=1/2/4 x streaming/PLE-random-burst/expert-burst",
+      "platform_theoretical_peak",
+      "actual-H3 dense-first-touch vs hashed-bank-spread mapping envelope"
+    ],
+    "shared_bus_lower_bound": "use same-regime measured 50/50 read-write total bandwidth for (logical reads + fills) service",
+    "single_channel_theoretical_bandwidth_gb_s": 12.8,
+    "stream_cls": 8,
+    "timing_preset": "LPDDR5_6400",
+    "trace_regimes": {
+      "expert_burst": {
+        "alignment_bytes": 4096,
+        "bursts": 4,
+        "object_bytes": 2534400,
+        "seed": 20260906
+      },
+      "ple_random_burst": {
+        "object_bytes": 160,
+        "objects": 40000,
+        "seed": 20260906
+      },
+      "streaming": {
+        "seed": 20260906,
+        "transactions": 200000
+      }
+    }
+  },
+  "pagecache": {
+    "capacity_semantics": "process_plus_pagecache_memcg_envelope_not_exact_pagecache_capacity",
+    "decision_normalization": "lower bound uses fastest class low coefficient; upper bound uses slowest class high coefficient; measured fio wall time retained as a sensitivity",
+    "decision_role": "hostile conventional baseline; best qualified mode participates in same-endpoint bound",
+    "max_initial_resident_sample_fraction": 0.05,
+    "mincore_sample_pages_per_file": 256,
+    "minimum_observed_memcg_fraction": 0.75,
+    "pressure_factor": 1.25,
+    "primary_strata": [
+      "session",
+      "long_context_8k"
+    ],
+    "required": true,
+    "required_modes": [
+      "buffered",
+      "mmap"
+    ]
+  },
+  "phase_calibration": {
+    "actual_h3_ramulator_phase_specific": true,
+    "fio_phase_specific": true,
+    "paper_promotion_requires_separate_phase_artifacts": true,
+    "phases": [
+      "prefill",
+      "decode"
+    ]
+  },
+  "prerequisites": {
+    "apply_symmetrically_to_directional_conclusions": true,
+    "campaign_fingerprint_required_fields": [
+      "contract_sha256",
+      "trace_manifest_sha256",
+      "storage_binding_sha256",
+      "device_major_minor",
+      "fio_head",
+      "fio_tree",
+      "fio_binary_sha256",
+      "ramulator_head",
+      "ramulator_tree"
+    ],
+    "capacity_budget_semantics": "physical memory is taken from contract.lpddr.platform_capacity_gib; every reservation is non-negative and SHA-bound to evidence; candidate budgets come only from contract.capacity_gib",
+    "conditional_evidence": {
+      "storage_concurrency_feasibility": {
+        "artifact_kind": "fenix_h3_storage_concurrency_evidence",
+        "evaluator": "measured_workload_scheduler_raw_event_qd_and_prefetch_slack_feasibility",
+        "measurement_artifact_kind": "fenix_h3_storage_scheduler_measurement",
+        "measurement_event_fields": [
+          "request_id",
+          "object_id",
+          "stratum",
+          "phase",
+          "observed_outstanding_io",
+          "available_prefetch_slack_ns",
+          "storage_completion_latency_ns"
+        ],
+        "minimum_achieved_fraction": 0.75,
+        "minimum_events_per_stratum_phase": 32,
+        "minimum_measured_requests": 100,
+        "minimum_unique_requests_per_stratum_phase": 4,
+        "minimum_usable_overlap_fraction": 0.75,
+        "required_for_verdict": "CONVENTIONAL_MEMORY_SUFFICIENT",
+        "required_queue_depth": 32,
+        "scheduler_semantics": "sufficiency requires raw workload-derived object events; FENIX derives achieved-QD and completion-within-prefetch-slack fractions rather than trusting user-supplied aggregates"
+      }
+    },
+    "long_context_beyond_8k": {
+      "claim_boundary": "multi-length trace-valid conditional-state characterization; not by itself an end-to-end or monotonic-service scaling claim",
+      "evaluator": "trace_validated_multi_length_context_scaling_characterization",
+      "minimum_points": 3,
+      "required_context_bands": [
+        {
+          "max_prompt_tokens_exclusive": 16384,
+          "min_prompt_tokens": 8192,
+          "name": "8k"
+        },
+        {
+          "max_prompt_tokens_exclusive": 32768,
+          "min_prompt_tokens": 16384,
+          "name": "16k"
+        },
+        {
+          "max_prompt_tokens_exclusive": null,
+          "min_prompt_tokens": 32768,
+          "name": "32k"
+        }
+      ]
+    },
+    "manifest_artifact_kind": "fenix_h3_prerequisite_manifest",
+    "pagecache_derived_from_decision_matrix": true,
+    "placement_invariance": {
+      "evaluator": "ordered_routing_and_ple_semantic_identity_across_physical_placements",
+      "minimum_placements": 2,
+      "required_strata": [
+        "chat_en",
+        "session",
+        "long_context_8k"
+      ]
+    },
+    "required_evidence": {
+      "deployment_capacity_budget": {
+        "artifact_kind": "fenix_h3_capacity_budget"
+      },
+      "long_context_beyond_8k": {
+        "artifact_kind": "fenix_h3_long_context_scaling_evidence"
+      },
+      "placement_invariance": {
+        "artifact_kind": "fenix_h3_placement_invariance_evidence"
+      },
+      "tool_qualification": {
+        "artifact_kind": "fenix_h3_tool_qualification"
+      }
+    }
+  },
+  "primary_policies": [
+    "useful_object_lru",
+    "vm_granularity_lru"
+  ],
+  "schema_version": 6,
+  "scientific_question": "Does a deliberately strong, evidence-qualified conventional LPDDR5 plus real block-storage hierarchy add a material conditional-memory service penalty relative to the same logical endpoint under an address-layout-sensitive collision-free LPDDR service-oracle envelope?",
+  "source_trace": {
+    "authoritative_run": "results/raw/h1_h2_workload_robustness_noprefix/20260904T162349Z",
+    "concurrency": 1,
+    "correlation_mode": "exact_request_correlation",
+    "prefix_caching": "disabled",
+    "repository_commit": "8b8694647840e5af73fd4e1fb1275d0b15c19056"
+  },
+  "storage": {
+    "achieved_qd_threshold_fraction": 0.5,
+    "bootstrap_draws": 10000,
+    "diagnostic_queue_depths": [
+      1,
+      8
+    ],
+    "expert_sample_bytes": 4294967296,
+    "full_trace_fio_replay_default": false,
+    "minimum_achieved_qd_fraction": 0.75,
+    "minimum_common_windows_for_promotion": 3,
+    "mixed_sample_bytes": 4831838208,
+    "mixed_validation_required": true,
+    "ple_sample_bytes": 536870912,
+    "preferred_common_windows_for_promotion": 5,
+    "primary_mode": "real_fio_direct_read_iolog",
+    "promotion_concurrency_semantics": "QD32 is an optimistic high-MLP conventional envelope and can falsify H3 gap support; CONVENTIONAL_MEMORY_SUFFICIENT requires separate workload-derived measured scheduler evidence that QD32 is realizable",
+    "promotion_queue_depths": [
+      32
+    ],
+    "queue_depths": [
+      1,
+      8,
+      32
+    ],
+    "randomize_run_order": true,
+    "run_order_seed": 20260906,
+    "runs_per_sample": 3,
+    "sample_mode": "nonoverlapping_source_sequence_blocks_with_exact_paired_ple_expert_mixed_filters",
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71
+    ],
+    "storage_binding_required": true,
+    "target_common_windows_for_promotion": 8
+  },
+  "strong_conventional_policies": [
+    "useful_object_lfu",
+    "vm_granularity_lfu"
+  ],
+  "tool_environment": {
+    "built_extension_sha256_required": true,
+    "cmake_version_required": true,
+    "compiler_version_required": true,
+    "pip_freeze_sha256_required": true,
+    "publication_recommendation": "archive the qualified pip-freeze file or container digest alongside raw evidence; source pin alone is not a complete software-environment lock",
+    "python_version_required": true,
+    "ramulator_exact_git_pin_required": true
+  },
+  "workload_policy": {
+    "implicit_cross_stratum_carry": false,
+    "phase_reports": [
+      "prefill",
+      "decode"
+    ],
+    "primary": "per_stratum_cold_start",
+    "strata": [
+      "chat_en",
+      "knowledge",
+      "math",
+      "code",
+      "multilingual",
+      "session",
+      "long_context_8k"
+    ]
+  }
+}

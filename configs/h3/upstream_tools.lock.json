@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "artifact_kind": "fenix_h3_upstream_tool_lock",
+  "tools": {
+    "ramulator2": {
+      "repository": "https://github.com/CMU-SAFARI/ramulator2.git",
+      "commit": "6710371b95c2fbc9fb842d2aad5ba30bb76abcf1",
+      "path": "external/tools/ramulator2",
+      "role": "LPDDR5 device/controller timing and sustainable-bandwidth calibration"
+    },
+    "fio": {
+      "repository": "https://github.com/axboe/fio.git",
+      "commit": "ab77643023f5d7e3c1b71a7576a564f368bf577a",
+      "path": "external/tools/fio",
+      "role": "real block-storage and Linux page-cache replay"
+    },
+    "drampower": {
+      "repository": "https://github.com/tukl-msd/DRAMPower.git",
+      "commit": "1e92c59a82e5f8d4a48d9759b5427d58f44e6a15",
+      "path": "external/tools/DRAMPower",
+      "role": "secondary LPDDR core-energy envelope only",
+      "secondary": true
+    },
+    "mqsim": {
+      "repository": "https://github.com/CMU-SAFARI/MQSim.git",
+      "commit": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16",
+      "path": "external/tools/MQSim",
+      "role": "optional generic NVMe/NAND sensitivity only",
+      "optional": true
+    }
+  },
+  "policy": {
+    "exact_commit_required": true,
+    "dirty_checkout_rejected": true,
+    "upstreams_unmodified": true
+  }
+}

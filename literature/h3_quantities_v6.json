@@ -1,0 +1,81 @@
+{
+  "artifact_kind": "fenix_h3_quantity_registry",
+  "quantities": {
+    "drampower": {
+      "commit": "1e92c59a82e5f8d4a48d9759b5427d58f44e6a15",
+      "role": "optional LPDDR core-energy sensitivity only; not a primary H3 result contributor",
+      "source_repository": "https://github.com/tukl-msd/DRAMPower"
+    },
+    "edge_lpddr_platform_envelope": {
+      "bandwidth_gb_s": 204.8,
+      "memory": "32GB 256-bit LPDDR5",
+      "platform": "NVIDIA Jetson AGX Orin 32GB",
+      "role": "public edge-class LPDDR capacity/bandwidth envelope; not an emulation target",
+      "source": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/"
+    },
+    "fio_storage_tool": {
+      "commit": "ab77643023f5d7e3c1b71a7576a564f368bf577a",
+      "release": "fio 3.42",
+      "role": "primary measured real-storage calibration with deterministic spatial windows, repeated runs, randomized order, and achieved-QD qualification",
+      "source_repository": "https://github.com/axboe/fio"
+    },
+    "lpddr_absolute_energy": {
+      "role": "not a primary H3 claim; DRAMPower can provide a secondary core-only datasheet envelope",
+      "value": null
+    },
+    "mqsim": {
+      "commit": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16",
+      "role": "pinned optional future SSD-model sensitivity; not used for the primary measured H3 result",
+      "source_repository": "https://github.com/CMU-SAFARI/MQSim"
+    },
+    "offline_conventional_bound": {
+      "method": "service-time-optimized static frequency bound with resident footprint separated from lower-tier transfer footprint",
+      "role": "strong conventional static oracle using measured storage + LPDDR fill service cost"
+    },
+    "promotion_prerequisites": {
+      "deployment_capacity": "contract-fixed 32-GiB platform minus non-negative SHA-bound reservations",
+      "long_context_beyond_8k": "derived trace-valid multi-length characterization with distinct 8K, 16K, and 32K context bands",
+      "placement_invariance": "ordered PLE/routing semantic identity across at least two physical-placement controls; timing metadata may differ",
+      "storage_qd32_sufficiency": "raw workload-derived scheduler events with observed outstanding I/O and object-specific prefetch slack; FENIX derives >=75% QD utilization and >=75% completion-within-slack thresholds"
+    },
+    "ramulator_lpddr5_profile": {
+      "actual_trace_calibration": "policy/stratum/capacity/phase-specific logical read/fill trace derived from H3 residency under dense-first-touch and hashed-bank-spread collision-free sample-local layouts",
+      "commit": "6710371b95c2fbc9fb842d2aad5ba30bb76abcf1",
+      "generic_calibration_regimes": [
+        "streaming",
+        "ple_random_burst",
+        "expert_burst"
+      ],
+      "org_preset": "LPDDR5_8Gb_x16",
+      "promotion_semantics": "high-MLP service-oracle envelope across nCS and multiple injective address-layout sensitivities; no mapping is claimed to preserve the original >32-GiB physical address geometry",
+      "role": "mature device/controller model used for a deliberately optimistic high-MLP service envelope; 16-channel scale-up is explicit",
+      "source_repository": "https://github.com/CMU-SAFARI/ramulator2",
+      "timing_preset": "LPDDR5_6400"
+    },
+    "storage_absolute_energy": {
+      "role": "unresolved; no H3 energy-superiority claim allowed",
+      "value": null
+    },
+    "storage_latency_bandwidth": {
+      "promotion_queue_depths": [
+        32
+      ],
+      "queue_depths": [
+        1,
+        8,
+        32
+      ],
+      "role": "QD1/QD8 are diagnostic; QD32 is an optimistic gap-falsification point. Conventional sufficiency additionally requires workload-derived measured scheduler evidence that QD32 is realizable.",
+      "source": "measured locally by pinned fio against the resolved backing device",
+      "value": null
+    },
+    "storage_uncertainty": {
+      "method": "non-overlapping complete-request blocks; PLE/expert/mixed iologs are filters of the same block; hierarchical joint bootstrap resamples a paired block then physical repeats",
+      "minimum_common_windows_for_promotion": 3,
+      "preferred_common_windows_for_promotion": 5,
+      "role": "prevent pseudo-replication from population-limited/class-specific windows and propagate paired block/run variability",
+      "target_common_windows_for_promotion": 8
+    }
+  },
+  "schema_version": 6
+}

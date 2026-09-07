@@ -1,0 +1,8 @@
+{
+  "case_dirs": [
+    "results/raw/<8k-control-case>",
+    "results/raw/<16k-control-case>",
+    "results/raw/<32k-control-case>"
+  ],
+  "notes": "Each case must be trace-valid, concurrency=1, exact request correlation, and fall into a distinct contract-declared 8K/16K/32K prompt-token band."
+}

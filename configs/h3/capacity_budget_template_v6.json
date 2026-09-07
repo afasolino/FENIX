@@ -1,0 +1,12 @@
+{
+  "platform_mode": "primary",
+  "physical_memory_gib": 32,
+  "reserved_components": {
+    "os_and_services": {"gib": 0.0, "artifact": null, "sha256": null},
+    "runtime": {"gib": 0.0, "artifact": null, "sha256": null},
+    "nonconditional_model": {"gib": 0.0, "artifact": null, "sha256": null},
+    "kv_cache": {"gib": 0.0, "artifact": null, "sha256": null},
+    "activations_buffers": {"gib": 0.0, "artifact": null, "sha256": null},
+    "safety_headroom": {"gib": 0.0, "artifact": null, "sha256": null}
+  }
+}

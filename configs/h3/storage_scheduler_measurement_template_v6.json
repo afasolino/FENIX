@@ -1,0 +1,19 @@
+{
+  "artifact_kind": "fenix_h3_storage_scheduler_measurement",
+  "measured": false,
+  "workload_derived_schedule": false,
+  "trace_manifest_sha256": null,
+  "storage_binding_sha256": null,
+  "events": [
+    {
+      "request_id": null,
+      "object_id": null,
+      "stratum": null,
+      "phase": null,
+      "observed_outstanding_io": null,
+      "available_prefetch_slack_ns": null,
+      "storage_completion_latency_ns": null
+    }
+  ],
+  "measurement_notes": "Populate raw measured events for every required stratum and prefill/decode phase. FENIX derives all QD/overlap fractions and verifies source-trace/storage binding."
+}

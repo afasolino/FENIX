@@ -1,0 +1,45 @@
+{
+  "placements": [
+    {
+      "name": "placement_a",
+      "cases": {
+        "chat_en": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        },
+        "session": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        },
+        "long_context_8k": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        }
+      }
+    },
+    {
+      "name": "placement_b",
+      "cases": {
+        "chat_en": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        },
+        "session": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        },
+        "long_context_8k": {
+          "prompts": null,
+          "ple_normalized": null,
+          "moe_normalized": null
+        }
+      }
+    }
+  ],
+  "notes": "Evaluator compares ordered prompt/PLE/MoE semantics; timing fields may differ, but request/token/object order may not."
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 6,
+  "artifact_kind": "fenix_h3_prerequisite_manifest",
+  "evidence": {
+    "placement_invariance": {
+      "artifact": null,
+      "sha256": null
+    },
+    "long_context_beyond_8k": {
+      "artifact": null,
+      "sha256": null
+    },
+    "deployment_capacity_budget": {
+      "artifact": null,
+      "sha256": null
+    },
+    "tool_qualification": {
+      "artifact": null,
+      "sha256": null
+    },
+    "storage_concurrency_feasibility": {
+      "artifact": null,
+      "sha256": null
+    }
+  }
+}
