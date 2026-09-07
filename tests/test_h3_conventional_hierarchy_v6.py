@@ -1679,3 +1679,16 @@ def test_lfu_does_not_rebuild_full_resident_heap_per_epoch():
     # A per-epoch rebuild would require roughly resident_count * 100 score
     # evaluations. Lazy persistent maintenance should remain far below that.
     assert incremental_calls < 50_000
+
+
+def test_v6_fio_cli_uses_supported_readonly_flag():
+    content = (ROOT / "scripts/h3_campaign.py").read_text()
+    assert '"--readonly=1"' not in content
+    assert content.count('"--readonly"') >= 2
+
+
+def test_v6_fio_qualification_requires_libaio_engine():
+    content = (ROOT / "scripts/h3_campaign.py").read_text()
+    assert content.count('"--enghelp"') >= 2
+    assert "fio_engine:libaio_missing" in content
+    assert "pinned fio build lacks required libaio engine" in content

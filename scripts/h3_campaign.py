@@ -195,6 +195,9 @@ def bootstrap_tools(args: argparse.Namespace) -> dict[str, Any]:
     _run(["./configure"], cwd=fio)
     _run(["make", f"-j{args.jobs}"], cwd=fio)
     version = _run(["./fio", "--version"], cwd=fio)
+    enghelp = _run(["./fio", "--enghelp"], cwd=fio)
+    if "libaio" not in {line.strip() for line in enghelp.splitlines()}:
+        raise H3Error("pinned fio build lacks required libaio engine")
 
     built = {
         "ramulator2": str(ramulator),
@@ -266,6 +269,13 @@ def qualify_tools(args: argparse.Namespace) -> dict[str, Any]:
     fio_path = root / lock["tools"]["fio"]["path"] / "fio"
     try:
         observed["fio_binary"] = fio_identity(fio_path, args.lock)
+        enghelp = _run([fio_path, "--enghelp"], cwd=root)
+        fio_engines = sorted({
+            line.strip() for line in enghelp.splitlines() if line.strip()
+        })
+        observed["fio_engines"] = fio_engines
+        if "libaio" not in fio_engines:
+            failures.append("fio_engine:libaio_missing")
     except H3Error as exc:
         failures.append(f"fio_binary:{exc}")
 
@@ -561,7 +571,7 @@ def run_fio_one(
         "--ioengine=libaio",
         "--direct=1",
         f"--iodepth={int(qd)}",
-        "--readonly=1",
+        "--readonly",
         "--output-format=json",
     ]
     proc = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1064,7 +1074,7 @@ def pagecache_inner(args: argparse.Namespace) -> dict[str, Any]:
         f"--ioengine={engine}",
         "--direct=0",
         "--iodepth=1",
-        "--readonly=1",
+        "--readonly",
         "--output-format=json",
     ]
     proc = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
