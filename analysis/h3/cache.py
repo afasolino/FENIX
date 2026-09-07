@@ -78,6 +78,10 @@ class ByteLFU:
         self.frequency: Counter[tuple[Hashable, ...]] = Counter()
         self.last_epoch: dict[tuple[Hashable, ...], int] = {}
         self.epoch = 0
+        self._heap_versions: Counter[tuple[Hashable, ...]] = Counter()
+        self._victim_heap: list[
+            tuple[tuple[float, int, str], int, tuple[Hashable, ...]]
+        ] = []
 
     def classify_epoch(self, objects: Iterable[CacheObject]) -> dict[tuple[Hashable, ...], bool]:
         unique = {obj.key: obj for obj in objects}
@@ -92,6 +96,43 @@ class ByteLFU:
             repr(key),
         )
 
+    def _push_current_heap_entry(self, key: tuple[Hashable, ...]) -> None:
+        obj = self.entries[key]
+        self._heap_versions[key] += 1
+        version = int(self._heap_versions[key])
+        heapq.heappush(self._victim_heap, (self._score(key, obj), version, key))
+
+    def _is_current_heap_entry(
+        self,
+        item: tuple[tuple[float, int, str], int, tuple[Hashable, ...]],
+    ) -> bool:
+        score, version, key = item
+        obj = self.entries.get(key)
+        return (
+            obj is not None
+            and int(self._heap_versions.get(key, 0)) == int(version)
+            and score == self._score(key, obj)
+        )
+
+    def _discard_stale_heap_prefix(self) -> None:
+        while self._victim_heap and not self._is_current_heap_entry(self._victim_heap[0]):
+            heapq.heappop(self._victim_heap)
+
+    def _maybe_compact_heap(self) -> None:
+        # Score updates create lazy stale records. Rebuild only when stale state
+        # materially dominates the live resident set, avoiding a full-cache heap
+        # construction at every trace epoch.
+        live = len(self.entries)
+        if len(self._victim_heap) <= max(4096, 4 * max(1, live)):
+            return
+        rebuilt: list[tuple[tuple[float, int, str], int, tuple[Hashable, ...]]] = []
+        for key, obj in self.entries.items():
+            self._heap_versions[key] += 1
+            version = int(self._heap_versions[key])
+            rebuilt.append((self._score(key, obj), version, key))
+        heapq.heapify(rebuilt)
+        self._victim_heap = rebuilt
+
     def commit_epoch(self, objects: Iterable[CacheObject]) -> None:
         materialized = list(objects)
         if not materialized:
@@ -103,6 +144,16 @@ class ByteLFU:
             self.frequency[obj.key] += 1
             self.last_epoch[obj.key] = self.epoch
         unique = {obj.key: obj for obj in materialized}
+
+        # Resident objects touched in this epoch have new LFU/recency scores.
+        # Publish one fresh heap record per unique resident key; older records are
+        # left in place and discarded lazily when they reach the heap front.
+        for key in unique:
+            if key in self.entries:
+                self._push_current_heap_entry(key)
+
+        self._maybe_compact_heap()
+
         # Most valuable newly observed objects are considered first. A candidate
         # is admitted only when it is at least as valuable as every victim needed
         # to make room, preventing LFU from degrading into unconditional demand fill.
@@ -111,7 +162,6 @@ class ByteLFU:
             key=lambda obj: self._score(obj.key, obj),
             reverse=True,
         )
-        victim_heap: list[tuple[tuple[float, int, str], tuple[Hashable, ...]]] | None = None
         for obj in candidates:
             key = obj.key
             if key in self.entries or obj.size_bytes > self.capacity_bytes:
@@ -120,43 +170,39 @@ class ByteLFU:
             if needed <= 0:
                 self.entries[key] = obj
                 self.resident_bytes += obj.size_bytes
+                self._push_current_heap_entry(key)
                 continue
-            # The replacement scores are fixed for the rest of this epoch: all
-            # frequency/recency learning happened above before admission starts.
-            # Candidates are processed in strictly descending score order, so an
-            # object admitted earlier in this loop can never be a legal victim for
-            # a later candidate. Build the resident victim heap lazily once per
-            # epoch rather than re-sorting the complete cache for every miss.
-            if victim_heap is None:
-                victim_heap = [
-                    (self._score(victim_key, victim), victim_key)
-                    for victim_key, victim in self.entries.items()
-                ]
-                heapq.heapify(victim_heap)
 
             reclaimed = 0
-            chosen: list[tuple[tuple[float, int, str], tuple[Hashable, ...]]] = []
+            chosen: list[tuple[tuple[float, int, str], int, tuple[Hashable, ...]]] = []
             candidate_score = self._score(key, obj)
-            while victim_heap and victim_heap[0][0] <= candidate_score and reclaimed < needed:
-                victim_score, victim_key = heapq.heappop(victim_heap)
+            while reclaimed < needed:
+                self._discard_stale_heap_prefix()
+                if not self._victim_heap or self._victim_heap[0][0] > candidate_score:
+                    break
+                victim_item = heapq.heappop(self._victim_heap)
+                if not self._is_current_heap_entry(victim_item):
+                    continue
+                _, _, victim_key = victim_item
                 victim = self.entries[victim_key]
-                chosen.append((victim_score, victim_key))
+                chosen.append(victim_item)
                 reclaimed += victim.size_bytes
 
             if reclaimed < needed:
-                # The original algorithm makes no eviction when the candidate
-                # cannot reclaim enough admissible bytes. Restore the inspected
-                # heap prefix exactly and leave cache state unchanged.
+                # Exact original semantics: a failed admission performs no
+                # eviction. Restore the valid victims inspected for this candidate.
                 for victim_item in chosen:
-                    heapq.heappush(victim_heap, victim_item)
+                    heapq.heappush(self._victim_heap, victim_item)
                 continue
 
-            for _, victim_key in chosen:
+            for _, _, victim_key in chosen:
                 victim = self.entries.pop(victim_key)
                 self.resident_bytes -= victim.size_bytes
             self.entries[key] = obj
             self.resident_bytes += obj.size_bytes
+            self._push_current_heap_entry(key)
         self.epoch += 1
+
 
 
 def replacement_kind(policy: str) -> str:

@@ -1647,3 +1647,35 @@ def test_v6_execution_protocol_is_terminal_safe_and_has_no_active_v5_refs():
     assert "contract_v5.json" not in content
     assert "h3_execution_v5.md" not in content
     assert "test_h3_conventional_hierarchy_v5.py" not in content
+
+
+def test_lfu_does_not_rebuild_full_resident_heap_per_epoch():
+    class CountingByteLFU(ByteLFU):
+        def __init__(self, capacity_bytes: int):
+            super().__init__(capacity_bytes)
+            self.score_calls = 0
+
+        def _score(self, key, obj):
+            self.score_calls += 1
+            return super()._score(key, obj)
+
+    resident_count = 5000
+    object_bytes = 160
+    cache = CountingByteLFU(resident_count * object_bytes)
+    seed = [
+        CacheObject(("seed", idx), object_bytes, "ple", ())
+        for idx in range(resident_count)
+    ]
+    cache.commit_epoch(seed)
+    baseline_calls = cache.score_calls
+
+    for idx in range(100):
+        candidate = CacheObject(("candidate", idx), object_bytes, "ple", ())
+        cache.commit_epoch([candidate])
+
+    incremental_calls = cache.score_calls - baseline_calls
+    assert cache.resident_bytes == resident_count * object_bytes
+    assert len(cache.entries) == resident_count
+    # A per-epoch rebuild would require roughly resident_count * 100 score
+    # evaluations. Lazy persistent maintenance should remain far below that.
+    assert incremental_calls < 50_000
