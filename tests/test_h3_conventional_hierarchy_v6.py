@@ -1763,3 +1763,56 @@ def test_v6_pagecache_iolog_omits_terminal_close(tmp_path: Path):
     assert lines
     assert not any(line.endswith(" close") for line in lines)
     assert lines[-1].split()[1] == "read"
+
+
+def test_v6_residency_gzip_is_byte_reproducible(tmp_path: Path):
+    _, manifest_path = _manifest(tmp_path)
+
+    a = replay_case(
+        manifest_path,
+        "chat_en",
+        0.01,
+        "useful_object_lru",
+        tmp_path / "replay-a",
+    )
+    b = replay_case(
+        manifest_path,
+        "chat_en",
+        0.01,
+        "useful_object_lru",
+        tmp_path / "replay-b",
+    )
+
+    assert a["counters"] == b["counters"]
+    assert a["miss_stream"]["sha256"] == b["miss_stream"]["sha256"]
+    assert (
+        a["logical_access_trace"]["sha256"]
+        == b["logical_access_trace"]["sha256"]
+    )
+
+    assert (
+        Path(a["miss_stream"]["path"]).read_bytes()
+        == Path(b["miss_stream"]["path"]).read_bytes()
+    )
+    assert (
+        Path(a["logical_access_trace"]["path"]).read_bytes()
+        == Path(b["logical_access_trace"]["path"]).read_bytes()
+    )
+
+
+def test_v6_achieved_qd_fraction_is_bounded():
+    payload = {
+        "jobs": [{
+            "iodepth_level": {
+                "1": 0.0,
+                "2": 0.0,
+                "4": 50.05,
+                "8": 50.05,
+                "16": 0.0,
+                "32": 0.0,
+                ">=64": 0.0,
+            }
+        }]
+    }
+
+    assert fio_achieved_qd_fraction(payload, 8, 0.5) == 1.0

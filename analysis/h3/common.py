@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -22,6 +24,33 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise H3Error(f"{path}: expected JSON object")
     return value
+
+
+@contextmanager
+def deterministic_gzip_text_writer(
+    path: Path,
+    compresslevel: int = 6,
+) -> Iterator[io.TextIOWrapper]:
+    """Write a reproducible gzip text stream.
+
+    The gzip header omits path-dependent filename metadata and fixes mtime=0,
+    so identical logical records produce identical compressed bytes.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as raw:
+        with gzip.GzipFile(
+            filename="",
+            mode="wb",
+            fileobj=raw,
+            compresslevel=int(compresslevel),
+            mtime=0,
+        ) as compressed:
+            with io.TextIOWrapper(
+                compressed,
+                encoding="utf-8",
+                newline="\n",
+            ) as text:
+                yield text
 
 
 def iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:

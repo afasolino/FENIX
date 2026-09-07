@@ -8,7 +8,10 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Iterable, Mapping
 
-from analysis.h3.common import H3Error, iter_jsonl, load_json, sha256_file, stable_u64, write_json
+from analysis.h3.common import (
+    H3Error, iter_jsonl, load_json, require_same_execution_repository,
+    sha256_file, stable_u64, write_json,
+)
 
 
 def _population_bytes(miss_path: Path) -> dict[str, int]:
@@ -315,7 +318,7 @@ def fio_achieved_qd_fraction(
         if not hist:
             raise H3Error("fio JSON lacks iodepth_level for QD qualification")
         pct = sum(float(value) for key, value in hist.items() if levels.get(str(key), 0) >= threshold)
-        fractions.append(pct / 100.0)
+        fractions.append(min(1.0, max(0.0, pct / 100.0)))
     if not fractions:
         raise H3Error("fio JSON has no jobs for QD qualification")
     return min(fractions)
@@ -357,6 +360,7 @@ def hierarchical_bootstrap_median_ci(
 def _verified_fio_result(
     result_path: Path,
     sample: dict[str, Any],
+    samples_payload: dict[str, Any],
     qd: int,
     samples_sha256: str,
     repeat_index: int,
@@ -369,6 +373,10 @@ def _verified_fio_result(
             f"missing fio result/provenance for {sample['sample_id']} qd={qd} rep={repeat_index}"
         )
     meta = load_json(meta_path)
+    require_same_execution_repository(
+        ("fio sample manifest", samples_payload),
+        ("fio run provenance", meta),
+    )
     if int(meta.get("returncode", -1)) != 0:
         raise H3Error(f"fio run failed for {sample['sample_id']} qd={qd} rep={repeat_index}")
     if int(meta.get("queue_depth", -1)) != qd:
@@ -470,6 +478,7 @@ def summarize_fio(
                 result = _verified_fio_result(
                     result_path(sample["sample_id"], qd, rep),
                     sample,
+                    payload,
                     qd,
                     samples_sha,
                     rep,
@@ -521,6 +530,7 @@ def summarize_fio(
                 result = _verified_fio_result(
                     result_path(sample["sample_id"], qd, rep),
                     sample,
+                    payload,
                     qd,
                     samples_sha,
                     rep,

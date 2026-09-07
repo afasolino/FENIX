@@ -1,14 +1,16 @@
 """Byte-accurate finite-LPDDR residency replay for H3."""
 from __future__ import annotations
 
-import gzip
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Hashable
 
 from analysis.h3.cache import CacheObject, cache_objects, make_cache, storage_record
-from analysis.h3.common import GIB, H3Error, load_json, sha256_file, write_json
+from analysis.h3.common import (
+    GIB, H3Error, deterministic_gzip_text_writer, load_json,
+    sha256_file, write_json,
+)
 from analysis.h3.trace import Geometry, TraceEvent, iter_case_epochs
 
 
@@ -132,9 +134,12 @@ def replay_case(
     sequence = 0
     logical_sequence = 0
 
-    with gzip.open(miss_path, "wt", encoding="utf-8", compresslevel=6) as stream, gzip.open(
-        logical_trace_path, "wt", encoding="utf-8", compresslevel=6
-    ) as logical_stream:
+    with (
+        deterministic_gzip_text_writer(miss_path, compresslevel=6) as stream,
+        deterministic_gzip_text_writer(
+            logical_trace_path, compresslevel=6
+        ) as logical_stream,
+    ):
         for epoch in iter_case_epochs(case_dir, geometry, phase_filter=phase_filter):
             event_objects: list[tuple[TraceEvent, list[CacheObject]]] = []
             all_objects: list[CacheObject] = []
