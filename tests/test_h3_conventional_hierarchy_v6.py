@@ -690,6 +690,7 @@ def test_streaming_golden_manifest_replay_storage_and_decision(tmp_path: Path):
         result_path = runs / f"{sample['sample_id']}-qd1-rep00.json"
         write_json(result_path, {"jobs": [{"job_runtime": 1, "read": {"io_bytes": sample["bytes"]}}]})
         write_json(result_path.with_suffix(".meta.json"), {
+            "artifact_kind": "fenix_h3_fio_run_provenance",
             "returncode": 0, "queue_depth": 1, "samples_sha256": samples_sha,
             "iolog_sha256": sample["iolog_sha256"], "actual_read_bytes": sample["bytes"],
             "fio_tool": tool, "repeat_index": 0,
@@ -732,6 +733,7 @@ def test_fio_summary_rejects_read_byte_mismatch(tmp_path: Path):
         result = runs / f"{sample['sample_id']}-qd1-rep00.json"
         write_json(result, {"jobs": [{"job_runtime": 1, "read": {"io_bytes": observed}}]})
         write_json(result.with_suffix(".meta.json"), {
+            "artifact_kind": "fenix_h3_fio_run_provenance",
             "returncode": 0, "queue_depth": 1, "samples_sha256": samples_sha,
             "iolog_sha256": sample["iolog_sha256"], "actual_read_bytes": observed,
             "fio_tool": _fake_fio_tool(), "repeat_index": 0,
