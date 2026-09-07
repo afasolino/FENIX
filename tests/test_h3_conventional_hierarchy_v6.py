@@ -17,6 +17,7 @@ from analysis.h3.lpddr import (
     offered_frontend_gb_s, theoretical_channel_gb_s, validate_resolved_profile,
     write_actual_h3_transaction_trace, _mapped_access_addresses,
 )
+import analysis.h3.pagecache as pagecache_module
 from analysis.h3.pagecache import build_pagecache_window
 from analysis.h3.prerequisites import (
     build_capacity_budget, build_long_context_scaling, build_placement_invariance,
@@ -785,6 +786,48 @@ def test_campaign_gate_rejects_mixed_capacity_matrix(tmp_path: Path):
     assert gate["preliminary_memory_service_verdict"] == "INCOMPLETE_OR_DUPLICATE_H3_MATRIX"
     assert gate["proceed_to_h4"] is False
     assert any("common capacity" in msg for msg in gate["matrix_errors"])
+
+def test_probe_storage_falls_back_to_legacy_lsblk_columns(tmp_path: Path, monkeypatch):
+    ple = tmp_path / "ple.bin"
+    expert = tmp_path / "expert.bin"
+    ple.write_bytes(b"p" * 4096)
+    expert.write_bytes(b"e" * 4096)
+    calls = []
+
+    def fake_run(command):
+        calls.append(list(command))
+        if command[0] == "lsblk":
+            columns = command[-1]
+            if "MOUNTPOINTS" in columns or "PATH" in columns:
+                raise H3Error("command failed: modern lsblk columns unsupported")
+            return json.dumps({
+                "blockdevices": [{
+                    "name": "/dev/sda", "model": "test", "serial": "abc", "tran": "sata",
+                    "size": "1T", "type": "disk", "pkname": None, "maj:min": "8:0",
+                    "mountpoint": "/home",
+                }]
+            })
+        if command[0] == "findmnt":
+            return json.dumps({
+                "filesystems": [{
+                    "target": "/home", "source": "/dev/sda", "fstype": "xfs",
+                    "options": "rw", "maj:min": "8:0",
+                }]
+            })
+        raise AssertionError(command)
+
+    monkeypatch.setattr(pagecache_module, "_run", fake_run)
+    result = pagecache_module.probe_storage(ple, expert, tmp_path / "storage.json")
+
+    assert result["same_filesystem_source"] is True
+    assert result["same_device_major_minor"] is True
+    assert result["ple"]["block_device"]["path"] == "/dev/sda"
+    assert result["ple"]["block_device"]["mountpoints"] == ["/home"]
+    lsblk_calls = [call for call in calls if call[0] == "lsblk"]
+    assert len(lsblk_calls) == 2
+    assert "MOUNTPOINTS" in lsblk_calls[0][-1]
+    assert lsblk_calls[1][-1] == "NAME,MODEL,SERIAL,TRAN,SIZE,TYPE,PKNAME,MAJ:MIN,MOUNTPOINT"
+
 
 def test_pagecache_window_replays_full_stratum_and_only_uses_footprint_as_gate(tmp_path: Path):
     manifest, manifest_path = _manifest(tmp_path)

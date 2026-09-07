@@ -31,15 +31,20 @@ def probe_storage(
     out_path: Path,
     contract_path: Path | None = None,
 ) -> dict[str, Any]:
-    nodes = _flatten(
-        json.loads(
-            _run([
-                "lsblk", "-J", "-p", "-o",
-                "NAME,PATH,MODEL,SERIAL,TRAN,SIZE,TYPE,PKNAME,MAJ:MIN,MOUNTPOINTS",
-            ])
-        ).get("blockdevices")
-        or []
-    )
+    modern_columns = "NAME,PATH,MODEL,SERIAL,TRAN,SIZE,TYPE,PKNAME,MAJ:MIN,MOUNTPOINTS"
+    legacy_columns = "NAME,MODEL,SERIAL,TRAN,SIZE,TYPE,PKNAME,MAJ:MIN,MOUNTPOINT"
+    try:
+        raw_nodes = json.loads(_run(["lsblk", "-J", "-p", "-o", modern_columns])).get("blockdevices") or []
+    except H3Error:
+        raw_nodes = json.loads(_run(["lsblk", "-J", "-p", "-o", legacy_columns])).get("blockdevices") or []
+
+    nodes = _flatten(raw_nodes)
+    for node in nodes:
+        if "path" not in node and node.get("name") is not None:
+            node["path"] = node["name"]
+        if "mountpoints" not in node:
+            mountpoint = node.get("mountpoint")
+            node["mountpoints"] = [mountpoint] if mountpoint else []
 
     def probe(path: Path) -> dict[str, Any]:
         real = path.resolve()
