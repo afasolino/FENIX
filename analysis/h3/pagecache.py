@@ -156,7 +156,6 @@ def build_pagecache_window(
                         )
                         logical_reads += 1
                         logical_bytes += geometry.expert_bytes
-        stream.write(f"{expert} close\n{ple} close\n")
 
     observed_unique = (
         len(unique_pages) * geometry.storage_page_bytes
@@ -172,6 +171,7 @@ def build_pagecache_window(
         "observed_unique_bytes": observed_unique,
         "pressure_sufficient": observed_unique >= target,
         "full_trace_replayed": True,
+        "terminal_file_close_records_omitted": True,
         "logical_reads": logical_reads,
         "logical_bytes": logical_bytes,
         "unique_ple_pages": len(unique_pages),

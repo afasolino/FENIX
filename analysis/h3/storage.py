@@ -190,11 +190,12 @@ def build_samples(
                 entry["first_sequence"] = sequence
             entry["last_sequence"] = sequence
     finally:
-        for (seed, kind), stream in handles.items():
-            if kind in ("expert", "mixed"):
-                stream.write(f"{expert} close\n")
-            if kind in ("ple", "mixed"):
-                stream.write(f"{ple} close\n")
+        # Do not emit terminal fio "close" records. With asynchronous
+        # read_iolog replay, fio 3.42 can process the terminal close while
+        # QD-1 reads remain in flight: total_ios still counts them, but
+        # read.io_bytes omits their completions. Natural job teardown closes
+        # the files after outstanding I/O is drained.
+        for stream in handles.values():
             stream.close()
 
     samples: list[dict[str, Any]] = []
@@ -270,6 +271,7 @@ def build_samples(
             "window_ranges_unique": True,
             "class_pairing": "ple/expert/mixed derive from the identical contiguous complete-request block; mixed is exact source-order union of admitted class operations",
             "mixed_target_equals_class_target_sum": True,
+            "terminal_file_close_records_omitted": True,
         },
         "samples": sorted(samples, key=lambda row: row["sample_id"]),
         "contract_sha256": contract_sha256,

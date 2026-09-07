@@ -1692,3 +1692,74 @@ def test_v6_fio_qualification_requires_libaio_engine():
     assert content.count('"--enghelp"') >= 2
     assert "fio_engine:libaio_missing" in content
     assert "pinned fio build lacks required libaio engine" in content
+
+
+def test_v6_storage_iologs_omit_terminal_close_for_async_replay(tmp_path: Path):
+    ple = tmp_path / "ple.bin"
+    expert = tmp_path / "expert.bin"
+    ple.touch()
+    expert.touch()
+
+    binding = tmp_path / "binding.json"
+    write_json(binding, {
+        "artifact_kind": "fenix_h3_storage_binding",
+        "ple": {
+            "path": str(ple.resolve()),
+            "mount": {"maj:min": "1:1"},
+        },
+        "expert": {
+            "path": str(expert.resolve()),
+            "mount": {"maj:min": "1:1"},
+        },
+        "same_device_major_minor": True,
+    })
+
+    misses = tmp_path / "misses.jsonl.gz"
+    _write_interleaved_storage_misses(misses, 30)
+
+    payload = build_samples(
+        misses,
+        ple,
+        expert,
+        binding,
+        tmp_path / "samples",
+        [11],
+        4096,
+        2_535_424,
+        4096 + 2_535_424,
+        contract_sha256=CONTRACT_SHA,
+    )
+
+    assert payload["sampling_design"]["terminal_file_close_records_omitted"] is True
+
+    for sample in payload["samples"]:
+        lines = Path(sample["iolog"]).read_text().splitlines()
+        assert lines
+        assert not any(line.endswith(" close") for line in lines)
+        assert lines[-1].split()[1] == "read"
+
+
+def test_v6_pagecache_iolog_omits_terminal_close(tmp_path: Path):
+    _, manifest_path = _manifest(tmp_path)
+
+    ple = tmp_path / "ple.bin"
+    expert = tmp_path / "expert.bin"
+    ple.touch()
+    expert.touch()
+
+    payload = build_pagecache_window(
+        manifest_path,
+        "session",
+        1e-6,
+        1.25,
+        ple,
+        expert,
+        tmp_path / "pagecache",
+    )
+
+    assert payload["terminal_file_close_records_omitted"] is True
+
+    lines = Path(payload["iolog"]).read_text().splitlines()
+    assert lines
+    assert not any(line.endswith(" close") for line in lines)
+    assert lines[-1].split()[1] == "read"
