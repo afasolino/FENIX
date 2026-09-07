@@ -115,7 +115,29 @@ def _dram(lpddr: dict[str, Any], ncs: int) -> tuple[Any, dict[str, Any], dict[st
     return dram, org, timing
 
 
-def _memory_system(dram: Any, addr_mapper: Any, lpddr: dict[str, Any]) -> Any:
+def _channel_mapper_for_frontend(ramulator: Any, frontend_address_mode: str) -> Any:
+    """Select the upstream channel mapper required by the frontend address contract.
+
+    ``LatencyThroughputTrace`` is addr-vec-native and therefore needs the
+    pass-through channel mapper. ``LoadStoreTrace`` is flat-address-native;
+    GenericDRAM requires its channel mapper to materialize ``addr_vec[0]``
+    before controller dispatch, so a one-channel CacheLineInterleave mapper is
+    required even though no inter-channel striping occurs.
+    """
+    if frontend_address_mode == "addr_vec":
+        return ramulator.channel_mapper.PassThroughChannelMapper()
+    if frontend_address_mode == "flat":
+        return ramulator.channel_mapper.CacheLineInterleave(interleave_bits=0)
+    raise H3Error(f"unknown Ramulator frontend address mode {frontend_address_mode}")
+
+
+def _memory_system(
+    dram: Any,
+    addr_mapper: Any,
+    lpddr: dict[str, Any],
+    *,
+    frontend_address_mode: str,
+) -> Any:
     import ramulator  # type: ignore
 
     refresh = (
@@ -133,7 +155,9 @@ def _memory_system(dram: Any, addr_mapper: Any, lpddr: dict[str, Any]) -> Any:
     return ramulator.memory_system.GenericDRAM(
         clock_ratio=1,
         controllers=[ctrl],
-        channel_mapper=ramulator.channel_mapper.PassThroughChannelMapper(),
+        channel_mapper=_channel_mapper_for_frontend(
+            ramulator, frontend_address_mode
+        ),
     )
 
 
@@ -195,7 +219,12 @@ def run_stream_point(lpddr: dict[str, Any], ncs: int, read_ratio: int) -> dict[s
         stagger_stream_rows=True,
         **layout,
     )
-    mem = _memory_system(dram, ramulator.addr_mapper.PassThroughAddrMapper(), lpddr)
+    mem = _memory_system(
+        dram,
+        ramulator.addr_mapper.PassThroughAddrMapper(),
+        lpddr,
+        frontend_address_mode="addr_vec",
+    )
     sim = ramulator.Simulation(frontend, mem)
     sim.run()
     result = _finish_stats(
@@ -311,7 +340,12 @@ def run_address_trace_point(
         frontend = ramulator.frontend.LoadStoreTrace(
             clock_ratio=int(lpddr["frontend_clock_ratio"]), path=str(trace)
         )
-        mem = _memory_system(dram, ramulator.addr_mapper.RoBaRaCoCh(), lpddr)
+        mem = _memory_system(
+            dram,
+            ramulator.addr_mapper.RoBaRaCoCh(),
+            lpddr,
+            frontend_address_mode="flat",
+        )
         sim = ramulator.Simulation(frontend, mem)
         sim.run()
         result = _finish_stats(
@@ -771,7 +805,12 @@ def run_actual_h3_trace_point(
         frontend = ramulator.frontend.LoadStoreTrace(
             clock_ratio=int(lpddr["frontend_clock_ratio"]), path=str(trace)
         )
-        mem = _memory_system(dram, ramulator.addr_mapper.RoBaRaCoCh(), lpddr)
+        mem = _memory_system(
+            dram,
+            ramulator.addr_mapper.RoBaRaCoCh(),
+            lpddr,
+            frontend_address_mode="flat",
+        )
         sim = ramulator.Simulation(frontend, mem)
         sim.run()
         result = _finish_stats(sim.stats, timing, count, int(lpddr["request_bytes"]))

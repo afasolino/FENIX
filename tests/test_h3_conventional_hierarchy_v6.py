@@ -4,6 +4,7 @@ import gzip
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,8 +15,9 @@ from analysis.h3.decision import (
     campaign_gate, decide_point,
 )
 from analysis.h3.lpddr import (
-    offered_frontend_gb_s, theoretical_channel_gb_s, validate_resolved_profile,
-    write_actual_h3_transaction_trace, _mapped_access_addresses,
+    _channel_mapper_for_frontend, _mapped_access_addresses, offered_frontend_gb_s,
+    theoretical_channel_gb_s, validate_resolved_profile,
+    write_actual_h3_transaction_trace,
 )
 import analysis.h3.pagecache as pagecache_module
 from analysis.h3.pagecache import build_pagecache_window
@@ -992,6 +994,29 @@ def test_qd32_qualification_uses_achieved_depth_histogram():
     assert fio_achieved_qd_fraction(poor, 32, 0.5) == pytest.approx(0.0)
     assert fio_achieved_qd_fraction(good, 1, 0.5) == pytest.approx(1.0)
 
+
+
+def test_ramulator_channel_mapper_matches_frontend_address_contract():
+    class PassThrough:
+        pass
+
+    class CacheLine:
+        def __init__(self, interleave_bits=99):
+            self.interleave_bits = interleave_bits
+
+    fake = SimpleNamespace(
+        channel_mapper=SimpleNamespace(
+            PassThroughChannelMapper=PassThrough,
+            CacheLineInterleave=CacheLine,
+        )
+    )
+
+    assert isinstance(_channel_mapper_for_frontend(fake, "addr_vec"), PassThrough)
+    flat = _channel_mapper_for_frontend(fake, "flat")
+    assert isinstance(flat, CacheLine)
+    assert flat.interleave_bits == 0
+    with pytest.raises(H3Error, match="unknown Ramulator frontend address mode"):
+        _channel_mapper_for_frontend(fake, "invalid")
 
 def test_lpddr_trace_regimes_preserve_expected_transaction_geometry(tmp_path: Path):
     from analysis.h3.lpddr import _write_regime_trace
