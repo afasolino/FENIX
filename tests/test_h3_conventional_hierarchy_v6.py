@@ -970,6 +970,78 @@ def test_lfu_preserves_atomic_classification_and_learns_after_epoch():
     assert cache.classify_epoch([a])[("a",)] is False
 
 
+def test_lfu_heap_matches_reference_repeated_sort_semantics():
+    import random
+
+    class ReferenceByteLFU(ByteLFU):
+        def commit_epoch(self, objects):
+            materialized = list(objects)
+            if not materialized:
+                self.epoch += 1
+                return
+            for obj in materialized:
+                if obj.size_bytes <= 0:
+                    raise H3Error(f"invalid cache object size for {obj.key}: {obj.size_bytes}")
+                self.frequency[obj.key] += 1
+                self.last_epoch[obj.key] = self.epoch
+            unique = {obj.key: obj for obj in materialized}
+            candidates = sorted(
+                unique.values(),
+                key=lambda obj: self._score(obj.key, obj),
+                reverse=True,
+            )
+            for obj in candidates:
+                key = obj.key
+                if key in self.entries or obj.size_bytes > self.capacity_bytes:
+                    continue
+                needed = self.resident_bytes + obj.size_bytes - self.capacity_bytes
+                if needed <= 0:
+                    self.entries[key] = obj
+                    self.resident_bytes += obj.size_bytes
+                    continue
+                victims = sorted(
+                    self.entries.items(),
+                    key=lambda item: self._score(item[0], item[1]),
+                )
+                reclaimed = 0
+                chosen = []
+                candidate_score = self._score(key, obj)
+                for victim_key, victim in victims:
+                    if self._score(victim_key, victim) > candidate_score:
+                        break
+                    chosen.append(victim_key)
+                    reclaimed += victim.size_bytes
+                    if reclaimed >= needed:
+                        break
+                if reclaimed < needed:
+                    continue
+                for victim_key in chosen:
+                    victim = self.entries.pop(victim_key)
+                    self.resident_bytes -= victim.size_bytes
+                self.entries[key] = obj
+                self.resident_bytes += obj.size_bytes
+            self.epoch += 1
+
+    rng = random.Random(0xF3A1)
+    objects = [
+        CacheObject(("obj", idx), size, "ple", ())
+        for idx, size in enumerate([17, 31, 47, 64, 79, 113, 127, 149, 191, 223, 251, 277])
+    ]
+    for capacity in (127, 257, 509, 1021):
+        fast = ByteLFU(capacity)
+        reference = ReferenceByteLFU(capacity)
+        for _ in range(160):
+            epoch = [rng.choice(objects) for _ in range(rng.randint(0, 18))]
+            assert fast.classify_epoch(epoch) == reference.classify_epoch(epoch)
+            fast.commit_epoch(epoch)
+            reference.commit_epoch(epoch)
+            assert fast.resident_bytes == reference.resident_bytes
+            assert fast.entries == reference.entries
+            assert fast.frequency == reference.frequency
+            assert fast.last_epoch == reference.last_epoch
+            assert fast.epoch == reference.epoch
+
+
 def test_strong_lfu_replay_and_offline_bound_are_emitted(tmp_path: Path):
     _, manifest_path = _manifest(tmp_path)
     replay = replay_case(manifest_path, "chat_en", 0.01, "useful_object_lfu", tmp_path / "lfu")

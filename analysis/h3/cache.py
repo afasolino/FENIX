@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter, OrderedDict
+import heapq
 from dataclasses import dataclass
 from typing import Hashable, Iterable, Protocol
 
@@ -110,6 +111,7 @@ class ByteLFU:
             key=lambda obj: self._score(obj.key, obj),
             reverse=True,
         )
+        victim_heap: list[tuple[tuple[float, int, str], tuple[Hashable, ...]]] | None = None
         for obj in candidates:
             key = obj.key
             if key in self.entries or obj.size_bytes > self.capacity_bytes:
@@ -119,23 +121,37 @@ class ByteLFU:
                 self.entries[key] = obj
                 self.resident_bytes += obj.size_bytes
                 continue
-            victims = sorted(
-                self.entries.items(),
-                key=lambda item: self._score(item[0], item[1]),
-            )
+            # The replacement scores are fixed for the rest of this epoch: all
+            # frequency/recency learning happened above before admission starts.
+            # Candidates are processed in strictly descending score order, so an
+            # object admitted earlier in this loop can never be a legal victim for
+            # a later candidate. Build the resident victim heap lazily once per
+            # epoch rather than re-sorting the complete cache for every miss.
+            if victim_heap is None:
+                victim_heap = [
+                    (self._score(victim_key, victim), victim_key)
+                    for victim_key, victim in self.entries.items()
+                ]
+                heapq.heapify(victim_heap)
+
             reclaimed = 0
-            chosen: list[tuple[Hashable, ...]] = []
+            chosen: list[tuple[tuple[float, int, str], tuple[Hashable, ...]]] = []
             candidate_score = self._score(key, obj)
-            for victim_key, victim in victims:
-                if self._score(victim_key, victim) > candidate_score:
-                    break
-                chosen.append(victim_key)
+            while victim_heap and victim_heap[0][0] <= candidate_score and reclaimed < needed:
+                victim_score, victim_key = heapq.heappop(victim_heap)
+                victim = self.entries[victim_key]
+                chosen.append((victim_score, victim_key))
                 reclaimed += victim.size_bytes
-                if reclaimed >= needed:
-                    break
+
             if reclaimed < needed:
+                # The original algorithm makes no eviction when the candidate
+                # cannot reclaim enough admissible bytes. Restore the inspected
+                # heap prefix exactly and leave cache state unchanged.
+                for victim_item in chosen:
+                    heapq.heappush(victim_heap, victim_item)
                 continue
-            for victim_key in chosen:
+
+            for _, victim_key in chosen:
                 victim = self.entries.pop(victim_key)
                 self.resident_bytes -= victim.size_bytes
             self.entries[key] = obj
