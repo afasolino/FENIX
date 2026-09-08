@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from analysis.h3.common import H3Error, set_execution_repository_identity
-from analysis.h3.oracle_gate import campaign_gate_with_oracle, decide_with_oracle
+from analysis.h3.oracle_gate_refined import campaign_gate_with_oracle, decide_with_oracle
 from analysis.h3.pagecache_oracle import build_pagecache_oracle
 from scripts.h3_campaign import _execution_repository_identity
 

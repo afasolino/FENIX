@@ -13,6 +13,7 @@
     "expert_partial_tail_free": true,
     "all_capacity_dedicated_to_expert_pages": true,
     "storage_latency_hidden": true,
+    "lpddr_bandwidth_relaxation": "point_local_max_of_measured_read_write_mixed_aggregate_bandwidths",
     "metadata_overhead_bytes": 0,
     "process_memory_overhead_bytes": 0,
     "gap_falsification_allowed": true,

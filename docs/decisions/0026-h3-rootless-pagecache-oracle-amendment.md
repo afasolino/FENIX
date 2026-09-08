@@ -20,7 +20,8 @@ The oracle is intentionally stronger than the intended 7-GiB Linux page cache:
 4. replacement uses exact future knowledge (Belady/MIN on the expert full-page reference stream);
 5. metadata and process-memory overhead are zero;
 6. storage latency for remaining expert misses is perfectly hidden;
-7. only unavoidable expert-capacity-miss LPDDR fill/shared-bus traffic is retained.
+7. only unavoidable expert-capacity-miss LPDDR fill/shared-bus traffic is retained;
+8. at each LPDDR sensitivity point, the oracle is granted the maximum of the measured aggregate read, write, and mixed bandwidths, so it is not penalized by the traffic mixture it has already idealized away.
 
 Because every relaxation favors the conventional hierarchy, a gap that survives this oracle also survives the weaker measured Linux page-cache implementation targeted by v6.  Conversely, the oracle is not realizable evidence and cannot establish conventional-memory sufficiency.
 

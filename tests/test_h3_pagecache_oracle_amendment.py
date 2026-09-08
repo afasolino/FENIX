@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from analysis.h3.common import set_execution_repository_identity, sha256_file
+from analysis.h3.oracle_gate_refined import _optimistic_point_bandwidth
 from analysis.h3.pagecache_oracle import build_pagecache_oracle, simulate_grouped_belady
 
 
@@ -61,6 +62,15 @@ def test_grouped_belady_matches_expanded_equal_page_min():
         sequence, pages, capacity
     )
     assert grouped["peak_resident_pages"] <= capacity
+
+
+def test_oracle_uses_most_favorable_point_local_lpddr_bandwidth():
+    point = {
+        "aggregate_read_bandwidth_gb_s": 121.0,
+        "aggregate_write_bandwidth_gb_s": 165.0,
+        "aggregate_mixed_total_bandwidth_gb_s": 94.0,
+    }
+    assert _optimistic_point_bandwidth(point) == 165.0
 
 
 def test_oracle_grants_free_ple_tail_and_binds_frozen_window(tmp_path: Path):
