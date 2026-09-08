@@ -14,16 +14,24 @@
     "storage_queue_depth": 32,
     "fio_expert_coefficient": "ci95_lower_fastest_across_frozen_campaign",
     "pass_condition": "maximum measured host-expert-id-ready to native expert-dispatch-ready interval is smaller than the fastest measured time to transfer one expert object",
+    "runtime_dependency": "exact routed IDs are materialized on the host immediately before the single native quant_method.apply dispatch for that router batch",
     "expert_prediction_allowed": false,
     "speculative_expert_prefetch_allowed": false,
     "gpu_direct_storage_scheduler_claimed": false,
+    "expert_storage_serialized_before_native_dispatch": true,
+    "causal_lower_bound": "max(original candidate lower bound, all-resident LPDDR service plus fastest measured QD expert-storage service for that candidate's unavoidable expert miss bytes)",
     "ple_perfect_prefetch_retained": true,
     "all_expert_perfect_prefetch_removed_only_if_causality_passes": true,
     "removed_sensitivity_baseline": "PLE_and_expert_perfect_prefetch_sensitivity",
-    "special_full_strata_cache_control": "future_aware_belady_expert_cache_with_free_PLE_and_tail_but_measured_unavoidable_expert_storage_bandwidth",
+    "causalized_baselines": [
+      "explicit_trace_cache_plus_direct_storage",
+      "service_time_optimized_offline_frequency_bound",
+      "deterministic_PLE_perfect_prefetch_sensitivity"
+    ],
+    "special_full_strata_cache_control": "future_aware_belady_expert_cache_with_free_PLE_and_tail_but_measured_causally_serialized_expert_storage_bandwidth",
     "special_full_strata": ["session", "long_context_8k"],
     "conventional_sufficiency_allowed_without_measured_pagecache": false,
     "gap_falsification_only": true
   },
-  "claim_boundary": "This amendment tests whether arbitrary expert-storage prefetch is causally available in the pinned host-driven Qwen runtime. It does not claim a general impossibility of learned expert prediction, speculative execution, GPUDirect Storage, or another redesigned scheduler. It may only remove the all-expert-perfect-prefetch falsification sensitivity for the measured conventional host-driven runtime path when the predeclared causal gate passes."
+  "claim_boundary": "This amendment tests the pinned host-driven Qwen runtime in which exact routed expert IDs become host-visible immediately before one native expert-dispatch call for the router batch. When the predeclared causal gate passes, unavoidable cold-expert storage service is treated as preceding that native dispatch rather than as arbitrarily prefetchable beneath it. PLE perfect-prefetch remains allowed. This does not establish a general impossibility of learned expert prediction, speculative execution, GPUDirect Storage, split-batch expert execution, or another redesigned scheduler; those are separate architectures and are not measured here. The amendment is gap-falsification only and cannot establish conventional-memory sufficiency without realizable measured page-cache/scheduler evidence."
 }
