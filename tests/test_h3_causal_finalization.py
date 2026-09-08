@@ -49,6 +49,17 @@ def test_causal_promotion_contract_is_bound_without_mutating_causality_amendment
     )
 
 
+def test_causal_promotion_binds_pinned_dynamic_lru_dispatch_ordering():
+    payload = json.loads(PROMOTION.read_text())
+    audit = payload["pinned_runtime_dispatch_audit"]
+    assert audit["revision"] == "7b5f0465db90fc49d6324904f48ad995ebdcb62f"
+    assert audit["git_blob_sha"] == "28a67404be1c60252b4ea48cb20547e69c698a1f"
+    assert audit["dynamic_lru_enabled_in_fenix_launch"] is True
+    assert audit["redesigned_split_or_speculative_scheduler_in_scope"] is False
+    assert "gather every missing expert tensor row" in audit["observed_program_order"]
+    assert "cache.kernel.apply" in audit["observed_program_order"]
+
+
 def test_causal_promotion_can_only_support_gap_not_sufficiency():
     payload = json.loads(PROMOTION.read_text())
     substitution = payload["pagecache_substitution"]
