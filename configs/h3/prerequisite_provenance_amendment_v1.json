@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h3_prerequisite_provenance_amendment",
+  "name": "analysis_derived_semantic_prerequisites_v1",
+  "base_contract_sha256": "56a23ecc1d6ed9014a38855952ef26885b123604455c5f12f28819c39f85ab26",
+  "frozen_measurement_head": "e08bc8d32b85ef3fe929d350ca122159fcee4073",
+  "allowed_analysis_derived_prerequisites": [
+    "placement_invariance",
+    "long_context_beyond_8k"
+  ],
+  "frozen_only_prerequisites": [
+    "deployment_capacity_budget",
+    "tool_qualification"
+  ],
+  "placement_control": {
+    "required_modes": ["resident", "mmap"],
+    "evaluator": "ordered_routing_and_ple_semantic_identity_across_physical_placements",
+    "request_identity_semantics": "first_seen_request_ordinal",
+    "require_same_source_repository_commit": true,
+    "require_same_runtime_image": true,
+    "require_same_runtime_lane": true,
+    "require_same_frozen_corpus": true,
+    "require_launch_mode_binding": true
+  },
+  "gate_semantics": "This amendment changes prerequisite implementation provenance only. It does not change the H3 matrix, capacity, QD, LPDDR/storage measurements, penalty bounds, thresholds, causal expert-service assumption, or page-cache/Belady semantics. Frozen-only prerequisites remain bound to e08; newly derived semantic prerequisites may be emitted by the causal analysis HEAD and must be explicitly SHA-bound in the prerequisite manifest.",
+  "claim_boundary": "The placement prerequisite compares the exact ordered prompt bytes, PLE row sequence, and atomic top-k MoE routing sequence across resident and mmap PLE placements while removing run-local request UUIDs, timing, endpoint metadata, and runtime event batching. It is a semantic-invariance control, not a performance result."
+}
