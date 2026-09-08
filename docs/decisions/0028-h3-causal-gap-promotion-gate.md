@@ -14,7 +14,7 @@ prefetch, the lower H3 bound reached zero for one sensitivity, so arbitrary
 expert-prefetch robustness was not supportable.
 
 The separately preregistered causal runtime experiment then measured the exact
-host-visible router-ID to native expert-dispatch interval in the pinned Qwen
+host-visible router-ID to native `quant_method.apply` interval in the pinned Qwen
 runtime. Across 6144 router events and all 48 layers in both prefill and decode,
 the maximum observed native interval was 6514 ns. The fastest lower-95%-CI QD32
 one-expert transfer from the complete frozen fio campaign was
@@ -22,10 +22,21 @@ one-expert transfer from the complete frozen fio campaign was
 0.002788657063431893 of the fastest measured one-expert transfer time. The
 causal gate passed with no failures.
 
+A source audit of the same pinned runtime revision resolves the ordering inside
+the native dispatch. With `VLLM_WNA16_DYNAMIC_LRU=1`,
+`CompressedTensorsWNA16MoEMethod.apply()` updates the LRU miss map, gathers each
+missing expert tensor row into the hot cache, and only then invokes
+`cache.kernel.apply(...)`. The native path therefore does not split resident and
+missing experts into independent compute dispatches. The causal conclusion is
+accordingly precise: there is negligible exact-ID lookahead before dispatch, and
+required cold-expert miss staging remains on the blocking native path inside
+that dispatch before expert computation. A redesigned split/speculative
+scheduler is a different architecture and remains outside this claim.
+
 A subsequent `session/useful_object_lru/full` canary retained perfect PLE
 prefetch and the future-aware cache upper bound but serialized unavoidable
-expert storage before native dispatch. Its global gap lower bound was
-0.4045828073257465, above the preregistered 0.10 H3 threshold.
+expert storage on that blocking miss-staging path. Its global gap lower bound
+was 0.4045828073257465, above the preregistered 0.10 H3 threshold.
 
 ## Decision
 
@@ -39,13 +50,14 @@ The causal gate:
 - reuses the frozen e08 residency, fio, generic LPDDR, and actual-H3 Ramulator
   artifacts by exact SHA provenance;
 - requires the passed causal expert-prefetch artifact on every row;
+- binds the causal interpretation to the pinned dynamic-LRU source ordering;
 - retains perfect PLE prefetch;
 - requires the future-aware causal Belady cache control for full `session` and
   `long_context_8k` rows;
 - permits that cache control to discharge the Linux page-cache requirement only
   for a memory-gap conclusion, because it is deliberately stronger than a
-  realizable replacement policy under the same causal expert-visibility
-  constraint;
+  realizable replacement policy under the same pinned-runtime expert-visibility
+  and blocking miss-staging constraints;
 - validates placement invariance, long-context characterization, deployment
   capacity, and tool qualification against the frozen e08 measurement identity;
 - permits a different committed analysis HEAD while preserving the frozen
@@ -65,5 +77,5 @@ feasibility evidence.
 The supported H3 scope, if reached, remains the conditional-memory service
 layer. It is not an end-to-end inference-speedup claim, an energy-superiority
 claim, or evidence of FeRAM superiority. Prediction, speculative expert
-prefetch, GPUDirect Storage, split-batch expert execution, and redesigned
+prefetch, GPUDirect Storage, split resident/miss execution, and redesigned
 schedulers remain outside the measured pinned-runtime claim.
