@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from analysis.h3.common import set_execution_repository_identity, sha256_file
+from analysis.h3.causal_decision import _causalize_candidate_lower
+from analysis.h3.common import set_execution_repository_identity
 from analysis.h3.expert_prefetch_causality import build_expert_prefetch_causality
 from instrumentation.add_h3_prefetch_causality import patch_routed_experts
 
@@ -69,6 +70,24 @@ def _write_fio(path: Path, low_ns_per_byte: float) -> None:
     path.write_text(json.dumps(payload))
 
 
+def _projection_fio(expert_coeff: float = 2.0) -> dict:
+    windows = ("w0", "w1", "w2")
+    def node(value: float) -> dict:
+        return {
+            "replicate_groups": {key: [value] for key in windows},
+            "replicate_values": [value] * len(windows),
+        }
+    return {
+        "paired_window_design": {"verified": True},
+        "bootstrap_draws": 128,
+        "class_coefficients": {
+            "ple:qd32": node(1.0),
+            "expert:qd32": node(expert_coeff),
+        },
+        "mixed_interaction": {"qd32": node(1.0)},
+    }
+
+
 def test_runtime_patch_places_causal_timestamps_after_host_id_materialization(tmp_path: Path):
     source = tmp_path / "routed_experts.py"
     source.write_text(
@@ -85,6 +104,25 @@ def test_runtime_patch_places_causal_timestamps_after_host_id_materialization(tm
     assert "fenix_h3_dispatch_call_ready_ns" in text
     assert text.index("_fenix_selected =") < text.index("_fenix_host_ids_ready_ns")
     assert text.index("_fenix_dispatch_call_ready_ns") < text.index('emit("moe_runtime"')
+
+
+def test_causal_lower_adds_unavoidable_expert_service_before_dispatch():
+    candidate = {
+        "baseline": "synthetic",
+        "service_ns_bounds": [1000.0, 5000.0],
+    }
+    _causalize_candidate_lower(
+        candidate,
+        all_lpddr_ns=1000.0,
+        expert_storage_bytes=100.0,
+        fio=_projection_fio(expert_coeff=2.0),
+        queue_depth=32,
+    )
+    assert candidate["pre_causal_service_ns_bounds"] == [1000.0, 5000.0]
+    assert candidate["causal_expert_storage_service_ns"]["low_ns"] == 200.0
+    assert candidate["service_ns_bounds"][0] == 1200.0
+    assert candidate["service_ns_bounds"][1] == 5000.0
+    assert candidate["expert_storage_serialized_before_native_dispatch"] is True
 
 
 def test_causality_passes_only_when_native_window_is_shorter_than_fastest_expert_io(tmp_path: Path):
