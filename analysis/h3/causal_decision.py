@@ -1,4 +1,13 @@
-"""H3 decision amendment constrained by measured expert-prefetch causality."""
+"""H3 decision amendment constrained by measured expert-prefetch causality.
+
+For the pinned host-driven runtime, an exact cold-expert read cannot start until
+router-selected expert IDs are available.  When the causal experiment proves
+that the native ID-ready-to-dispatch window cannot hide even the fastest
+measured one-expert transfer, unavoidable expert storage service is on the
+critical path before native expert dispatch.  This module therefore causalizes
+every conventional lower bound that still contains expert misses; PLE perfect
+prefetch remains an intentionally hostile sensitivity.
+"""
 from __future__ import annotations
 
 import tempfile
@@ -6,11 +15,19 @@ from pathlib import Path
 from typing import Any
 
 from analysis.h3.common import H3Error, load_json, sha256_file, write_json
-from analysis.h3.decision import _candidate_interval_summary, _service_ns, decide_point
+from analysis.h3.decision import (
+    _candidate_interval_summary,
+    _service_ns,
+    _service_time_optimized_offline_bound,
+    decide_point,
+)
 from analysis.h3.storage import project_storage_bytes_ns
 
 
 REMOVED_BASELINE = "PLE_and_expert_perfect_prefetch_sensitivity"
+OFFLINE_BASELINE = "service_time_optimized_offline_frequency_bound"
+PLE_PREFETCH_BASELINE = "deterministic_PLE_perfect_prefetch_sensitivity"
+EXPLICIT_BASELINE = "explicit_trace_cache_plus_direct_storage"
 CAUSAL_BELADY_BASELINE = "causal_belady_pagecache_plus_measured_storage_bandwidth"
 
 
@@ -20,6 +37,11 @@ def _load_amendment(path: Path, contract_path: Path) -> dict[str, Any]:
         raise H3Error("unexpected causality amendment")
     if payload.get("base_contract_sha256") != sha256_file(contract_path):
         raise H3Error("causality amendment is not bound to H3 contract")
+    cfg = payload.get("causality") or {}
+    if cfg.get("expert_storage_serialized_before_native_dispatch") is not True:
+        raise H3Error("causality amendment does not declare serialized expert service")
+    if cfg.get("ple_perfect_prefetch_retained") is not True:
+        raise H3Error("causality amendment must retain PLE perfect-prefetch sensitivity")
     return payload
 
 
@@ -72,6 +94,45 @@ def _validate_pagecache_oracle(
     return payload
 
 
+def _causalize_candidate_lower(
+    candidate: dict[str, Any],
+    *,
+    all_lpddr_ns: float,
+    expert_storage_bytes: float,
+    fio: dict[str, Any],
+    queue_depth: int,
+) -> None:
+    """Add the fastest measured unavoidable expert service before dispatch.
+
+    The original lower endpoint is retained if it is stronger.  The expert-only
+    storage projection deliberately grants PLE perfect prefetch and uses the
+    same optimistic QD requested by the decision.  Adding it to all-resident
+    LPDDR service follows the measured source dependency: exact expert IDs ->
+    required cold-expert service -> native quant_method.apply dispatch.
+    """
+    if expert_storage_bytes < 0:
+        raise H3Error("negative expert storage bytes in causal decision")
+    expert_service = project_storage_bytes_ns(
+        0.0,
+        float(expert_storage_bytes),
+        fio,
+        int(queue_depth),
+    )
+    old = candidate.get("service_ns_bounds")
+    if not isinstance(old, list) or len(old) != 2:
+        raise H3Error(f"candidate lacks service bounds: {candidate.get('baseline')}")
+    causal_low = max(float(old[0]), float(all_lpddr_ns) + float(expert_service["low_ns"]))
+    candidate["pre_causal_service_ns_bounds"] = list(old)
+    candidate["service_ns_bounds"] = [causal_low, max(causal_low, float(old[1]))]
+    candidate["causal_expert_storage_bytes"] = float(expert_storage_bytes)
+    candidate["causal_expert_storage_service_ns"] = expert_service
+    candidate["expert_storage_serialized_before_native_dispatch"] = True
+    candidate["causal_lower_bound_semantics"] = (
+        "max(original lower, all-resident LPDDR service + fastest measured "
+        "QD expert-storage service); PLE storage latency may remain perfectly hidden"
+    )
+
+
 def decide_with_causal_prefetch(
     residency_path: Path,
     lpddr_path: Path,
@@ -109,6 +170,8 @@ def decide_with_causal_prefetch(
     residency = load_json(residency_path)
     fio = load_json(fio_path)
     phase = residency.get("phase_filter")
+    counters = residency.get("counters") or {}
+    baseline_expert_storage_bytes = float(counters.get("expert_storage_bytes", 0))
     special = set(str(v) for v in amendment["causality"]["special_full_strata"])
     needs_oracle = phase is None and str(residency.get("stratum")) in special
     if needs_oracle and pagecache_oracle_path is None:
@@ -120,13 +183,64 @@ def decide_with_causal_prefetch(
     if pagecache_oracle_path is not None:
         oracle = _validate_pagecache_oracle(pagecache_oracle_path, residency, frozen_head)
 
-    read_bytes = float(residency["counters"]["lpddr_read_useful_bytes"])
+    read_bytes = float(counters.get("lpddr_read_useful_bytes", 0))
     removed = 0
+    causalized = 0
     for point in result["sensitivity_points"]:
+        all_lpddr = float(point["all_lpddr_oracle_ns"])
+        write_bw = float(point["aggregate_write_bandwidth_gb_s"])
         before = list(point["conventional_candidates"])
         kept = [row for row in before if row.get("baseline") != REMOVED_BASELINE]
         removed += len(before) - len(kept)
         point["conventional_candidates"] = kept
+
+        by_name = {str(row.get("baseline")): row for row in kept}
+        explicit = by_name.get(EXPLICIT_BASELINE)
+        ple_prefetch = by_name.get(PLE_PREFETCH_BASELINE)
+        offline = by_name.get(OFFLINE_BASELINE)
+        if explicit is None or ple_prefetch is None:
+            raise H3Error("causal decision lacks required explicit/PLE-prefetch candidates")
+
+        _causalize_candidate_lower(
+            explicit,
+            all_lpddr_ns=all_lpddr,
+            expert_storage_bytes=baseline_expert_storage_bytes,
+            fio=fio,
+            queue_depth=int(queue_depth),
+        )
+        causalized += 1
+        _causalize_candidate_lower(
+            ple_prefetch,
+            all_lpddr_ns=all_lpddr,
+            expert_storage_bytes=baseline_expert_storage_bytes,
+            fio=fio,
+            queue_depth=int(queue_depth),
+        )
+        causalized += 1
+
+        if offline is not None:
+            profile = residency.get("offline_static_frequency_profile")
+            if not isinstance(profile, dict):
+                raise H3Error("offline candidate exists without offline profile")
+            bound = _service_time_optimized_offline_bound(
+                profile,
+                fio,
+                int(queue_depth),
+                int(residency.get("capacity_bytes", 0)),
+                write_bw,
+                str(residency.get("policy")),
+                int(counters.get("ple_storage_bytes", 0)),
+                int(counters.get("expert_storage_bytes", 0)),
+            )
+            offline["causal_offline_bound"] = bound
+            _causalize_candidate_lower(
+                offline,
+                all_lpddr_ns=all_lpddr,
+                expert_storage_bytes=float(bound.get("expert_storage_bytes", 0)),
+                fio=fio,
+                queue_depth=int(queue_depth),
+            )
+            causalized += 1
 
         if oracle is not None:
             miss_bytes = float(oracle["lower_tier_read_bytes"])
@@ -139,23 +253,22 @@ def decide_with_causal_prefetch(
             if any(value <= 0 for value in bandwidths):
                 raise H3Error("causal page-cache oracle LPDDR bandwidth is invalid")
             optimistic_bw = max(bandwidths)
-            all_lpddr = float(point["all_lpddr_oracle_ns"])
             fill = _service_ns(miss_bytes, optimistic_bw)
             shared_bus = _service_ns(read_bytes + miss_bytes, optimistic_bw)
-            lower = max(all_lpddr, shared_bus, float(storage["low_ns"]))
-            # Storage and LPDDR are granted perfect overlap. The upper endpoint
-            # therefore uses the slower of the two finite resources rather than
-            # summing them; this remains deliberately favorable to conventional memory.
-            upper = max(all_lpddr + fill, shared_bus, float(storage["high_ns"]))
+            # Belady replacement and LPDDR bandwidth remain unrealistically
+            # favorable, but the unavoidable expert service is causally before
+            # the native expert dispatch and cannot be hidden behind that dispatch.
+            lower = max(all_lpddr + float(storage["low_ns"]), shared_bus)
+            upper = max(lower, all_lpddr + fill + float(storage["high_ns"]))
             point["conventional_candidates"].append({
                 "baseline": CAUSAL_BELADY_BASELINE,
                 "promotion_role": "gap_falsification_only",
-                "role": "future_aware_cache_plus_finite_measured_storage_with_perfect_resource_overlap",
+                "role": "future_aware_cache_with_finite_causally_serialized_expert_storage",
                 "future_knowledge": True,
                 "ple_storage_traffic_free": True,
                 "expert_partial_tail_free": True,
-                "storage_latency_overlap": "perfect",
                 "storage_bandwidth_finite_and_measured": True,
+                "expert_storage_serialized_before_native_dispatch": True,
                 "storage_read_bytes": miss_bytes,
                 "storage_service_ns": storage,
                 "oracle_lpddr_bandwidth_gb_s": optimistic_bw,
@@ -164,9 +277,10 @@ def decide_with_causal_prefetch(
                 "service_ns_bounds": [lower, upper],
                 "pagecache_oracle_sha256": sha256_file(pagecache_oracle_path),
             })
+            causalized += 1
 
         interval = _candidate_interval_summary(
-            point["conventional_candidates"], float(point["all_lpddr_oracle_ns"])
+            point["conventional_candidates"], all_lpddr
         )
         point["gap_falsification_penalty_fraction_bounds"] = interval[
             "gap_falsification_penalty_fraction_bounds"
@@ -207,6 +321,8 @@ def decide_with_causal_prefetch(
     result["causality_artifact_sha256"] = sha256_file(causality_path)
     result["causality_amendment_sha256"] = sha256_file(amendment_path)
     result["removed_unbounded_sensitivity_baseline"] = REMOVED_BASELINE
+    result["expert_storage_lower_bounds_causalized"] = True
+    result["causalized_candidate_instances"] = causalized
     result["ple_perfect_prefetch_sensitivity_retained"] = True
     result["causal_belady_pagecache_used"] = oracle is not None
     result["causal_belady_pagecache_baseline"] = CAUSAL_BELADY_BASELINE if oracle is not None else None
