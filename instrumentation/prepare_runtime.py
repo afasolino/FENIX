@@ -13,6 +13,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 PIN = "7b5f0465db90fc49d6324904f48ad995ebdcb62f"
@@ -111,9 +112,12 @@ def main() -> int:
         shutil.rmtree(staging)
         raise SystemExit(f"missing instrumentation helper: {helper}")
 
+    # Use the interpreter that invoked this staging command.  This preserves
+    # exact environment identity and supports linked Git worktrees where a
+    # project-local .venv directory is intentionally absent.
     completed = subprocess.run(
         [
-            str(Path(__file__).resolve().parents[1] / ".venv/bin/python"),
+            sys.executable,
             str(helper),
             "--runtime",
             str(staging),
@@ -185,6 +189,7 @@ def main() -> int:
     provenance["overlay_manifest"] = overlay_manifest
     provenance["docker_context"] = docker_context
     provenance["source_checkout_modified"] = False
+    provenance["staging_python"] = sys.executable
     instrumentation_manifest.write_text(json.dumps(provenance, indent=2) + "\n")
 
     if output.exists():
@@ -197,6 +202,7 @@ def main() -> int:
                 "runtime_head": head,
                 "output": str(output),
                 "overlay_manifest": overlay_manifest,
+                "staging_python": sys.executable,
             },
             indent=2,
         )
