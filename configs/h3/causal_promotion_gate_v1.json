@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h3_causal_promotion_contract",
+  "name": "causal_gap_promotion_v1",
+  "base_contract_sha256": "56a23ecc1d6ed9014a38855952ef26885b123604455c5f12f28819c39f85ab26",
+  "causality_amendment_sha256": "6a6ab9991b7907c79eb2f7bf0c342c12b6bcfb01d77857bbf2677e2b2aac424f",
+  "frozen_measurement_head": "e08bc8d32b85ef3fe929d350ca122159fcee4073",
+  "promotion_scope": "conditional_memory_service_layer",
+  "matrix": {
+    "capacity_gib": 7,
+    "queue_depth": 32,
+    "require_exact_contract_matrix": true,
+    "require_actual_h3_lpddr_every_row": true,
+    "require_causal_expert_service_every_row": true,
+    "special_full_strata": ["session", "long_context_8k"],
+    "required_special_full_baseline": "causal_belady_pagecache_plus_measured_storage_bandwidth"
+  },
+  "pagecache_substitution": {
+    "allowed_for_gap_promotion_only": true,
+    "reason": "the future-aware Belady control is deliberately stronger than realizable Linux replacement for the same 7-GiB envelope while retaining finite measured cold-expert service causally before native dispatch",
+    "measured_linux_pagecache_required_for_conventional_sufficiency": true,
+    "conventional_sufficiency_may_not_be_promoted_by_this_gate": true
+  },
+  "provenance": {
+    "frozen_measurements_must_remain_at_frozen_head": true,
+    "analysis_head_may_differ_from_measurement_head": true,
+    "all_decisions_must_share_one_analysis_head": true,
+    "prerequisites_must_match_frozen_measurement_head": true
+  },
+  "promotion": {
+    "supported_verdict": "H3_PAPER_GATE_SUPPORTED",
+    "blocked_verdict": "H3_PAPER_GATE_BLOCKED",
+    "proceed_to_h4_on_supported_gap": true,
+    "end_to_end_inference_claim_allowed": false,
+    "energy_superiority_claim_allowed": false
+  },
+  "claim_boundary": "A supported causal H3 gate establishes a conditional-memory service-layer gap for the pinned host-driven runtime under the frozen 7-GiB conventional hierarchy campaign, including perfect PLE prefetch and a future-aware cache upper bound. It does not establish end-to-end speedup, energy superiority, FeRAM superiority, or a general impossibility of prediction/speculative expert prefetch/redesigned storage scheduling."
+}
