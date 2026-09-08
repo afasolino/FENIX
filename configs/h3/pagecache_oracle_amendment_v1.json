@@ -1,0 +1,28 @@
+{
+  "artifact_kind": "fenix_h3_analysis_amendment_contract",
+  "schema_version": 1,
+  "name": "rootless_pagecache_oracle_gap_falsification_v1",
+  "base_contract_sha256": "56a23ecc1d6ed9014a38855952ef26885b123604455c5f12f28819c39f85ab26",
+  "frozen_measurement_head": "e08bc8d32b85ef3fe929d350ca122159fcee4073",
+  "pagecache_oracle": {
+    "artifact_kind": "fenix_h3_pagecache_oracle",
+    "algorithm": "belady_min_equal_page_future_oracle",
+    "required_strata": ["session", "long_context_8k"],
+    "capacity_gib": 7,
+    "ple_storage_traffic_free": true,
+    "expert_partial_tail_free": true,
+    "all_capacity_dedicated_to_expert_pages": true,
+    "storage_latency_hidden": true,
+    "metadata_overhead_bytes": 0,
+    "process_memory_overhead_bytes": 0,
+    "gap_falsification_allowed": true,
+    "conventional_sufficiency_allowed": false
+  },
+  "provenance_policy": {
+    "measurement_artifacts_must_share_frozen_execution_identity": true,
+    "analysis_artifacts_use_current_analysis_execution_identity": true,
+    "oracle_must_bind_source_measurement_execution_identity": true,
+    "prerequisites_must_match_measurement_identity": true
+  },
+  "fallback_policy": "If the hostile oracle prevents H3 gap support, do not promote sufficiency from the oracle. Escalate to another rootless/isolated experiment design, rerunning affected experiments if needed. System-level host modification remains a last-resort option only."
+}
