@@ -138,13 +138,32 @@ def run_tests(root: Path) -> int:
     return completed.returncode
 
 
+def repository_root(cwd: Path) -> Path | None:
+    """Resolve a normal checkout or linked Git worktree root fail-closed."""
+    probe = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if probe.returncode != 0 or not probe.stdout.strip():
+        return None
+    try:
+        return Path(probe.stdout.strip()).resolve()
+    except OSError:
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-tests", action="store_true")
     args = parser.parse_args()
 
     root = Path.cwd().resolve()
-    if not (root / ".git").is_dir():
+    resolved_root = repository_root(root)
+    if resolved_root != root:
         print("ERROR: run from the FENIX repository root", file=sys.stderr)
         return 2
 
