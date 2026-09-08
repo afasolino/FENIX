@@ -6,6 +6,17 @@
   "causality_amendment_sha256": "6a6ab9991b7907c79eb2f7bf0c342c12b6bcfb01d77857bbf2677e2b2aac424f",
   "frozen_measurement_head": "e08bc8d32b85ef3fe929d350ca122159fcee4073",
   "promotion_scope": "conditional_memory_service_layer",
+  "pinned_runtime_dispatch_audit": {
+    "repository": "https://github.com/DominikBucko/qwen38-flash-next-2x3090.git",
+    "revision": "7b5f0465db90fc49d6324904f48ad995ebdcb62f",
+    "path": "runtime/vllm-overlay/model_executor/layers/quantization/compressed_tensors/compressed_tensors_moe/compressed_tensors_moe_wna16.py",
+    "git_blob_sha": "28a67404be1c60252b4ea48cb20547e69c698a1f",
+    "dynamic_lru_enabled_in_fenix_launch": true,
+    "observed_program_order": "update LRU miss map -> gather every missing expert tensor row into cache -> cache.kernel.apply",
+    "ordering_semantics": "the pinned dynamic-LRU path does not split resident and missing experts into independent compute dispatches; required miss staging is issued before the expert kernel invocation on the native path",
+    "causal_interpretation": "the measured host-ID-ready to quant_method.apply interval bounds pre-dispatch exact-ID lookahead; pinned source ordering places cold-expert miss staging on the blocking path inside that dispatch before expert computation",
+    "redesigned_split_or_speculative_scheduler_in_scope": false
+  },
   "matrix": {
     "capacity_gib": 7,
     "queue_depth": 32,
@@ -17,7 +28,7 @@
   },
   "pagecache_substitution": {
     "allowed_for_gap_promotion_only": true,
-    "reason": "the future-aware Belady control is deliberately stronger than realizable Linux replacement for the same 7-GiB envelope while retaining finite measured cold-expert service causally before native dispatch",
+    "reason": "the future-aware Belady control is deliberately stronger than realizable Linux replacement for the same 7-GiB envelope while retaining finite measured cold-expert service on the pinned runtime's blocking miss-staging path before expert computation",
     "measured_linux_pagecache_required_for_conventional_sufficiency": true,
     "conventional_sufficiency_may_not_be_promoted_by_this_gate": true
   },
@@ -34,5 +45,5 @@
     "end_to_end_inference_claim_allowed": false,
     "energy_superiority_claim_allowed": false
   },
-  "claim_boundary": "A supported causal H3 gate establishes a conditional-memory service-layer gap for the pinned host-driven runtime under the frozen 7-GiB conventional hierarchy campaign, including perfect PLE prefetch and a future-aware cache upper bound. It does not establish end-to-end speedup, energy superiority, FeRAM superiority, or a general impossibility of prediction/speculative expert prefetch/redesigned storage scheduling."
+  "claim_boundary": "A supported causal H3 gate establishes a conditional-memory service-layer gap for the pinned host-driven runtime under the frozen 7-GiB conventional hierarchy campaign, including perfect PLE prefetch and a future-aware cache upper bound. The causal serialization claim is limited to the pinned dynamic-LRU native path in which missing expert rows are staged before the expert kernel invocation; it does not establish end-to-end speedup, energy superiority, FeRAM superiority, or a general impossibility of prediction, speculative expert prefetch, split resident/miss execution, GPUDirect Storage, or redesigned storage scheduling."
 }
