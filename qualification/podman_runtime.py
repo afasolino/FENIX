@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,12 +16,29 @@ class PodmanPaths:
     tmp: Path
 
 
+def _short_runtime_base(repository_root: Path) -> Path:
+    """Return a deterministic short user-owned Podman runtime directory.
+
+    Rootless containers/storage rejects overly long runroot paths. Git linked
+    worktrees can easily exceed that limit even when the persistent OCI store
+    remains project-local. Keep only ephemeral runroot/tmp data in the system
+    temporary directory; include uid + repository hash to avoid cross-worktree
+    collisions.
+    """
+
+    root = repository_root.resolve()
+    digest = hashlib.sha256(str(root).encode("utf-8")).hexdigest()[:8]
+    return Path(tempfile.gettempdir()) / f"fenix-pd-{os.getuid()}-{digest}"
+
+
 def podman_paths(repository_root: Path) -> PodmanPaths:
-    base = repository_root / ".runtime" / "podman"
+    root = repository_root.resolve()
+    persistent = root / ".runtime" / "podman"
+    transient = _short_runtime_base(root)
     return PodmanPaths(
-        storage=(base / "storage").resolve(),
-        run=(base / "run").resolve(),
-        tmp=(base / "tmp").resolve(),
+        storage=(persistent / "storage").resolve(),
+        run=(transient / "run").resolve(),
+        tmp=(transient / "tmp").resolve(),
     )
 
 
