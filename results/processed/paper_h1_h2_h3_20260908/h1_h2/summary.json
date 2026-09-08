@@ -1,0 +1,17 @@
+{
+  "artifact_kind": "fenix_h1_h2_publication_rematerialization",
+  "source_trace_root": "results/raw/h1_h2_workload_robustness_noprefix/20260904T162349Z",
+  "source_scientific_head": "8b8694647840e5af73fd4e1fb1275d0b15c19056",
+  "analysis_code_head": "2dbf0b3663ddf993068acc1f8f5fdfc94a247ee4",
+  "case_count": 7,
+  "strata": [
+    "chat_en",
+    "code",
+    "knowledge",
+    "long_context_8k",
+    "math",
+    "multilingual",
+    "session"
+  ],
+  "note": "Deterministic post-processing of frozen measured traces; no model or physical experiment rerun."
+}

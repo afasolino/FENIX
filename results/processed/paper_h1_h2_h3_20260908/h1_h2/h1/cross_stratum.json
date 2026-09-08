@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_cross_stratum_robustness",
+  "strata": [
+    "chat_en",
+    "code",
+    "knowledge",
+    "long_context_8k",
+    "math",
+    "multilingual",
+    "session"
+  ],
+  "pair_count": 21,
+  "pairs": [
+    {
+      "left": "chat_en",
+      "right": "code",
+      "ple_jaccard": 0.023445633615125142,
+      "expert_jaccard": 0.9265384458328229,
+      "expert_top128_per_layer_jaccard": 0.35959283027218414,
+      "expert_js_divergence_bits": 0.22675157638056023
+    },
+    {
+      "left": "chat_en",
+      "right": "knowledge",
+      "ple_jaccard": 0.01996900118948924,
+      "expert_jaccard": 0.96002447481134,
+      "expert_top128_per_layer_jaccard": 0.2903496797227764,
+      "expert_js_divergence_bits": 0.23304382591331063
+    },
+    {
+      "left": "chat_en",
+      "right": "long_context_8k",
+      "ple_jaccard": 0.008762626306749581,
+      "expert_jaccard": 0.9865228013029316,
+      "expert_top128_per_layer_jaccard": 0.2675881988859088,
+      "expert_js_divergence_bits": 0.20356051074283912
+    },
+    {
+      "left": "chat_en",
+      "right": "math",
+      "ple_jaccard": 0.018928324146427,
+      "expert_jaccard": 0.9360730593607306,
+      "expert_top128_per_layer_jaccard": 0.29811958588633003,
+      "expert_js_divergence_bits": 0.27715282611413267
+    },
+    {
+      "left": "chat_en",
+      "right": "multilingual",
+      "ple_jaccard": 0.012844729882886286,
+      "expert_jaccard": 0.9391836734693878,
+      "expert_top128_per_layer_jaccard": 0.3055673608159796,
+      "expert_js_divergence_bits": 0.2598141200595978
+    },
+    {
+      "left": "chat_en",
+      "right": "session",
+      "ple_jaccard": 0.021887597201633247,
+      "expert_jaccard": 0.9802411798256335,
+      "expert_top128_per_layer_jaccard": 0.33434683461830816,
+      "expert_js_divergence_bits": 0.1982897474552214
+    },
+    {
+      "left": "code",
+      "right": "knowledge",
+      "ple_jaccard": 0.02946000865030725,
+      "expert_jaccard": 0.9332255657796568,
+      "expert_top128_per_layer_jaccard": 0.40901272789817683,
+      "expert_js_divergence_bits": 0.19612685555085493
+    },
+    {
+      "left": "code",
+      "right": "long_context_8k",
+      "ple_jaccard": 0.011169726586396252,
+      "expert_jaccard": 0.9337196963513182,
+      "expert_top128_per_layer_jaccard": 0.21989476819219697,
+      "expert_js_divergence_bits": 0.282934289609391
+    },
+    {
+      "left": "code",
+      "right": "math",
+      "ple_jaccard": 0.0407801230095922,
+      "expert_jaccard": 0.9214795046078145,
+      "expert_top128_per_layer_jaccard": 0.5125553914327917,
+      "expert_js_divergence_bits": 0.15575998417092127
+    },
+    {
+      "left": "code",
+      "right": "multilingual",
+      "ple_jaccard": 0.016829847633393197,
+      "expert_jaccard": 0.9024058102587381,
+      "expert_top128_per_layer_jaccard": 0.34869937438261445,
+      "expert_js_divergence_bits": 0.2625567936436437
+    },
+    {
+      "left": "code",
+      "right": "session",
+      "ple_jaccard": 0.026261813566620582,
+      "expert_jaccard": 0.9330766710353866,
+      "expert_top128_per_layer_jaccard": 0.3479596314172883,
+      "expert_js_divergence_bits": 0.23004480803891386
+    },
+    {
+      "left": "knowledge",
+      "right": "long_context_8k",
+      "ple_jaccard": 0.016036763457739,
+      "expert_jaccard": 0.9693481898698012,
+      "expert_top128_per_layer_jaccard": 0.24359882602975408,
+      "expert_js_divergence_bits": 0.20509397054225115
+    },
+    {
+      "left": "knowledge",
+      "right": "math",
+      "ple_jaccard": 0.03863834791440229,
+      "expert_jaccard": 0.947243996516113,
+      "expert_top128_per_layer_jaccard": 0.458862638014959,
+      "expert_js_divergence_bits": 0.14924254030606807
+    },
+    {
+      "left": "knowledge",
+      "right": "multilingual",
+      "ple_jaccard": 0.01759025063232927,
+      "expert_jaccard": 0.9368299521688933,
+      "expert_top128_per_layer_jaccard": 0.38113971001461167,
+      "expert_js_divergence_bits": 0.16981249815226301
+    },
+    {
+      "left": "knowledge",
+      "right": "session",
+      "ple_jaccard": 0.022101907242609242,
+      "expert_jaccard": 0.9648871811641596,
+      "expert_top128_per_layer_jaccard": 0.2565702014520912,
+      "expert_js_divergence_bits": 0.24841694497542038
+    },
+    {
+      "left": "long_context_8k",
+      "right": "math",
+      "ple_jaccard": 0.009657385780029462,
+      "expert_jaccard": 0.9465692477243969,
+      "expert_top128_per_layer_jaccard": 0.21796015462384777,
+      "expert_js_divergence_bits": 0.2690476710898399
+    },
+    {
+      "left": "long_context_8k",
+      "right": "multilingual",
+      "ple_jaccard": 0.004565546277303097,
+      "expert_jaccard": 0.9434215885947047,
+      "expert_top128_per_layer_jaccard": 0.2237824917836869,
+      "expert_js_divergence_bits": 0.26752803457101165
+    },
+    {
+      "left": "long_context_8k",
+      "right": "session",
+      "ple_jaccard": 0.01634423802046188,
+      "expert_jaccard": 0.9896457543516367,
+      "expert_top128_per_layer_jaccard": 0.2503052503052503,
+      "expert_js_divergence_bits": 0.17599386894465074
+    },
+    {
+      "left": "math",
+      "right": "multilingual",
+      "ple_jaccard": 0.017817087820383343,
+      "expert_jaccard": 0.9224555735056543,
+      "expert_top128_per_layer_jaccard": 0.3618530422254239,
+      "expert_js_divergence_bits": 0.2353601791251935
+    },
+    {
+      "left": "math",
+      "right": "session",
+      "ple_jaccard": 0.019606328226218637,
+      "expert_jaccard": 0.9432650222931239,
+      "expert_top128_per_layer_jaccard": 0.2784019975031211,
+      "expert_js_divergence_bits": 0.29373707398204796
+    },
+    {
+      "left": "multilingual",
+      "right": "session",
+      "ple_jaccard": 0.011597989154098879,
+      "expert_jaccard": 0.9383768352365416,
+      "expert_top128_per_layer_jaccard": 0.21759809750297265,
+      "expert_js_divergence_bits": 0.3212435632544316
+    }
+  ]
+}

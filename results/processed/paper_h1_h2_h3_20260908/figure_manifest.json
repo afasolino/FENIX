@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_publication_figure_manifest",
+  "sources": {
+    "results/processed/paper_h1_h2_h3_20260908/exact_results.json": "3224645b5e31e85f22e509729c4ae944f99e99fc0aa402eb09589e8fb9186442",
+    "results/processed/paper_h1_h2_h3_20260908/moe_hotness_validation.json": "44b4bad937996596cb76ecacba71874c5450409f79f7f22f4e3b79c7d9d7a1b1",
+    "results/processed/paper_h1_h2_h3_20260908/h2_traffic_reduction.csv": "78fbd162774a16b564418de7b15174f46688d6cd71921cc8305ed82b0d568500",
+    "results/raw/h3_conventional_hierarchy_v6/20260907T072015Z/causal-analysis-3faa1cb6/decisions/session-useful_object_lru-full-q32.json": "fa85ef7b4b73fc146cdcdf080e57fdcb09c79f759bfbae206cddcbbd2d9ac063"
+  },
+  "figures": {
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_PLE_vs_MoE_locality.pdf": "71eda02f83b6a7f26075ac227beb65259ef86bb7e01677eb31a38d239a5b44bf",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_PLE_vs_MoE_locality.svg": "2ef6461e1920716084da9df68b414820851d13bd710b1350ad03732bbe0cd679",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_PLE_vs_MoE_locality.png": "1a6ce1933652101b780f599e88529abaaa84bf2c0a1f0b7c74f14e5389ef157c",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_windowed_expert_hotness.pdf": "44ff9e00f5298289ee8870daa1c0a614637262da4cee50ccf3cab0699edd8176",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_windowed_expert_hotness.svg": "7a02e570132779fec713bcb7d993325bf833dcf2754109d8a0308dcf2e9bb60a",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H1_windowed_expert_hotness.png": "a59344975e811ceecb6213c263cef7404bfd8370e46c32cb73811c5fae458e6b",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H2_traffic_reduction_vs_capacity.pdf": "856cc5c4b2d733ba770b1f8df43fe0c55b89dc131fdc7d294671438bf85d5570",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H2_traffic_reduction_vs_capacity.svg": "58906a39d02e96089af9a55c3ac8363412d46b02486ddce55fa0f84e9d8aee21",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H2_traffic_reduction_vs_capacity.png": "de53f13c97dbb6b745f459de6e642ada7a9588ed35ee48a94a556ec5ea8383de",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_causal_prefetch.pdf": "aedcbaf5827c1d38fce68045f19c205eebf4c2ff419fd0704b72914e72b937b9",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_causal_prefetch.svg": "964ff4b69f0b8bdcef08dc8c7d9f715e630a10e596f35b0189a0fca00266f26d",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_causal_prefetch.png": "5b7e3b0a41a4675bd7f21158cbd106a634dead7be02c09c255d10005fda91ae0",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_memory_service_gap.pdf": "72f27b71572226a039d4755b2328a27619010e6f272360c88df6828ab4082509",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_memory_service_gap.svg": "73e65062b410e354b86615acc8f4c75e10463ced4ed9bc1803672e6e0f2ce68d",
+    "results/processed/paper_h1_h2_h3_20260908/figures/H3_memory_service_gap.png": "f1fe16f736810f035b91388ad9acd36d5ef0b3c22c7fb41a91da30ce1b7a5ef4"
+  }
+}

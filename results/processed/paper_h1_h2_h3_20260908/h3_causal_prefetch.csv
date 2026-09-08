@@ -1,0 +1,2 @@
+records_used,required_layers,derived_pass,prefill_events,decode_events,prefill_median_slack_ns,prefill_p95_slack_ns,prefill_max_slack_ns,decode_median_slack_ns,decode_p95_slack_ns,decode_max_slack_ns,maximum_native_prefetch_slack_ns,fastest_one_expert_service_ns_lower,slack_over_service,service_over_slack
+6144,48,True,192,5952,213.5,284,577,201.0,237,6514,6514,2335891.381345927,0.002788657063431893,358.5955451866636

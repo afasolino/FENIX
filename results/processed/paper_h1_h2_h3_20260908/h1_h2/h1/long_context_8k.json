@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_workload_robustness_stratum",
+  "evidence_kind": "local_measured_trace_analysis",
+  "hypothesis": "H1_working_set_sparsity_and_stability",
+  "stratum": "long_context_8k",
+  "case_id": "s-long_context_8k-r01",
+  "request_count": 8,
+  "model_token_observations": 57848,
+  "coverage_complete": true,
+  "coverage": [
+    {
+      "request_id": "fenix-trace-0000-9ff93d23",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0001-c54231d0",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0002-895351e5",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0003-2daae55e",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0004-e617382f",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0005-f08d6a18",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0006-1ff6a2d6",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    },
+    {
+      "request_id": "fenix-trace-0007-f1f2a63d",
+      "ple_model_tokens": 7231,
+      "moe_tokens_per_layer_min": 7231,
+      "moe_tokens_per_layer_max": 7231,
+      "all_layers_present": true,
+      "moe_matches_ple_all_layers": true,
+      "autoregressive_expected_model_tokens": 7231,
+      "ple_matches_autoregressive_expected": true
+    }
+  ],
+  "ple": {
+    "addressable_rows": 320001536,
+    "row_bytes": 160,
+    "accesses": 925568,
+    "unique_rows": 508224,
+    "unique_row_fraction_of_table": 0.001588192376676592,
+    "unique_bytes": 81315840,
+    "working_set_growth": [
+      {
+        "request_fraction": 0.25,
+        "requests_observed": 2,
+        "unique_objects": 106198
+      },
+      {
+        "request_fraction": 0.5,
+        "requests_observed": 4,
+        "unique_objects": 222110
+      },
+      {
+        "request_fraction": 0.75,
+        "requests_observed": 6,
+        "unique_objects": 384731
+      },
+      {
+        "request_fraction": 1.0,
+        "requests_observed": 8,
+        "unique_objects": 508224
+      }
+    ]
+  },
+  "experts": {
+    "num_layers": 48,
+    "experts_per_layer": 512,
+    "selected_per_token": 10,
+    "selections": 27767040,
+    "unique_layer_objects": 24495,
+    "unique_fraction_of_all_layer_experts": 0.9967041015625,
+    "per_layer_unique_min": 496,
+    "per_layer_unique_mean": 510.3125,
+    "per_layer_unique_max": 512,
+    "mean_normalized_selection_entropy": 0.9367977667396631,
+    "concentration": [
+      {
+        "topk_experts_per_layer": 16,
+        "mean_selection_fraction": 0.1517833373668925,
+        "min_selection_fraction": 0.08264417093071498,
+        "max_selection_fraction": 0.31065551099433
+      },
+      {
+        "topk_experts_per_layer": 32,
+        "mean_selection_fraction": 0.24063965766606743,
+        "min_selection_fraction": 0.1505791038583875,
+        "max_selection_fraction": 0.3993292767252109
+      },
+      {
+        "topk_experts_per_layer": 64,
+        "mean_selection_fraction": 0.3743289886138385,
+        "min_selection_fraction": 0.26478875674180613,
+        "max_selection_fraction": 0.5251624948139954
+      },
+      {
+        "topk_experts_per_layer": 128,
+        "mean_selection_fraction": 0.5646865852463927,
+        "min_selection_fraction": 0.45232333010648595,
+        "max_selection_fraction": 0.7035437698796847
+      },
+      {
+        "topk_experts_per_layer": 256,
+        "mean_selection_fraction": 0.8111261049071129,
+        "min_selection_fraction": 0.7298333563822431,
+        "max_selection_fraction": 0.903936177568801
+      }
+    ],
+    "working_set_growth": [
+      {
+        "request_fraction": 0.25,
+        "requests_observed": 2,
+        "unique_objects": 23976
+      },
+      {
+        "request_fraction": 0.5,
+        "requests_observed": 4,
+        "unique_objects": 24344
+      },
+      {
+        "request_fraction": 0.75,
+        "requests_observed": 6,
+        "unique_objects": 24410
+      },
+      {
+        "request_fraction": 1.0,
+        "requests_observed": 8,
+        "unique_objects": 24495
+      }
+    ]
+  },
+  "phase": {
+    "prefill": {
+      "model_tokens": 57344,
+      "ple_accesses": 917504,
+      "ple_unique_rows": 505502,
+      "expert_selections": 27525200,
+      "expert_unique_layer_objects": 24486,
+      "expert_concentration": [
+        {
+          "topk_experts_per_layer": 16,
+          "mean_selection_fraction": 0.1523171695145977,
+          "min_selection_fraction": 0.08288812944622681,
+          "max_selection_fraction": 0.31161237444196427
+        },
+        {
+          "topk_experts_per_layer": 32,
+          "mean_selection_fraction": 0.24141576584137278,
+          "min_selection_fraction": 0.1509415539126796,
+          "max_selection_fraction": 0.4003330775669643
+        },
+        {
+          "topk_experts_per_layer": 64,
+          "mean_selection_fraction": 0.37538396846995553,
+          "min_selection_fraction": 0.26527235318733433,
+          "max_selection_fraction": 0.5263375418526786
+        },
+        {
+          "topk_experts_per_layer": 128,
+          "mean_selection_fraction": 0.5659532361860767,
+          "min_selection_fraction": 0.45284249441964286,
+          "max_selection_fraction": 0.7043997628348214
+        },
+        {
+          "topk_experts_per_layer": 256,
+          "mean_selection_fraction": 0.8122712135232595,
+          "min_selection_fraction": 0.7306884765625,
+          "max_selection_fraction": 0.9044276646205357
+        }
+      ]
+    },
+    "decode": {
+      "model_tokens": 496,
+      "ple_accesses": 7936,
+      "ple_unique_rows": 6312,
+      "expert_selections": 241840,
+      "expert_unique_layer_objects": 17103,
+      "expert_concentration": [
+        {
+          "topk_experts_per_layer": 16,
+          "mean_selection_fraction": 0.305354209336064,
+          "min_selection_fraction": 0.16612903225806452,
+          "max_selection_fraction": 0.41369047619047616
+        },
+        {
+          "topk_experts_per_layer": 32,
+          "mean_selection_fraction": 0.43659840896484053,
+          "min_selection_fraction": 0.27358870967741933,
+          "max_selection_fraction": 0.5472222222222223
+        },
+        {
+          "topk_experts_per_layer": 64,
+          "mean_selection_fraction": 0.6042717400580305,
+          "min_selection_fraction": 0.43024193548387096,
+          "max_selection_fraction": 0.7021825396825396
+        },
+        {
+          "topk_experts_per_layer": 128,
+          "mean_selection_fraction": 0.8015876349419697,
+          "min_selection_fraction": 0.651008064516129,
+          "max_selection_fraction": 0.8617063492063493
+        },
+        {
+          "topk_experts_per_layer": 256,
+          "mean_selection_fraction": 0.9658880835040112,
+          "min_selection_fraction": 0.9080645161290323,
+          "max_selection_fraction": 0.9861111111111112
+        }
+      ]
+    },
+    "unknown": {
+      "model_tokens": 8,
+      "ple_accesses": 128,
+      "ple_unique_rows": 16,
+      "expert_selections": 0,
+      "expert_unique_layer_objects": 0,
+      "expert_concentration": [
+        {
+          "topk_experts_per_layer": 16,
+          "mean_selection_fraction": null,
+          "min_selection_fraction": null,
+          "max_selection_fraction": null
+        },
+        {
+          "topk_experts_per_layer": 32,
+          "mean_selection_fraction": null,
+          "min_selection_fraction": null,
+          "max_selection_fraction": null
+        },
+        {
+          "topk_experts_per_layer": 64,
+          "mean_selection_fraction": null,
+          "min_selection_fraction": null,
+          "max_selection_fraction": null
+        },
+        {
+          "topk_experts_per_layer": 128,
+          "mean_selection_fraction": null,
+          "min_selection_fraction": null,
+          "max_selection_fraction": null
+        },
+        {
+          "topk_experts_per_layer": 256,
+          "mean_selection_fraction": null,
+          "min_selection_fraction": null,
+          "max_selection_fraction": null
+        }
+      ]
+    }
+  },
+  "language_subgroups": {},
+  "session_consecutive_turn_overlap": {
+    "pair_count": 0,
+    "rows": [],
+    "mean_ple_jaccard": null,
+    "mean_expert_jaccard": null
+  },
+  "source": {
+    "repository_commit": "8b8694647840e5af73fd4e1fb1275d0b15c19056",
+    "runtime_image_id": "sha256:5802000edac89fa935fc02b3a0a65967aa9ae122582c6c20b0b415bb699fa44c",
+    "frozen_corpus_sha256": "11889e5e3e0d6daf8d09c86a7b447f642f4fa2709cb6361c8796198513667b46"
+  }
+}

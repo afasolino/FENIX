@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "fenix_h1_h2_h3_publication_exact_results",
+  "repository": "afasolino/FENIX",
+  "final_code_head": "2dbf0b3663ddf993068acc1f8f5fdfc94a247ee4",
+  "scientific_heads": {
+    "h1_h2": "8b8694647840e5af73fd4e1fb1275d0b15c19056",
+    "h3_measurement": "e08bc8d32b85ef3fe929d350ca122159fcee4073",
+    "h3_causal_analysis": "3faa1cb6763beb092a4bb5de4639fac1cf09d97d"
+  },
+  "h1": {
+    "ple_union_rows": 877377,
+    "ple_row_bytes": 160,
+    "ple_union_bytes": 140380320,
+    "ple_union_mib": 133.87710571289062,
+    "ple_fraction_of_address_space": 0.0027417899644081706,
+    "ple_addressable_rows": 320001536,
+    "moe_union_layer_experts": 24567,
+    "moe_total_layer_experts": 24576,
+    "moe_union_fraction": 0.9996337890625,
+    "mean_selection_concentration": {
+      "16": 0.13817573442643313,
+      "32": 0.21527211042792374,
+      "64": 0.335342835848705,
+      "128": 0.5184591329731073,
+      "256": 0.7742614278616234
+    }
+  },
+  "h2": {
+    "metric": "conditional_lower_tier_bytes_reduction_fraction",
+    "rows": [
+      {
+        "budget_gib": 4.0,
+        "homogeneous_holdout": 0.3858564022163127,
+        "same_domain_mean": 0.3424110037787397,
+        "same_domain_min": 0.27364865198901345,
+        "same_domain_max": 0.4118514693934219,
+        "cross_domain_mean": 0.24476336147922934,
+        "cross_domain_min": 0.1989168511725552,
+        "cross_domain_max": 0.2889285602300313,
+        "session": 0.17261612356958847,
+        "long_context_8k": 0.13766695202305254,
+        "mixed_online_mean": 0.2774678161425999,
+        "mixed_online_min": 0.27590197167836494,
+        "mixed_online_max": 0.28025358814386153
+      },
+      {
+        "budget_gib": 7.0,
+        "homogeneous_holdout": 0.5293372263368283,
+        "same_domain_mean": 0.46060598094813815,
+        "same_domain_min": 0.3746105543285927,
+        "same_domain_max": 0.5442680690309102,
+        "cross_domain_mean": 0.34046396453886957,
+        "cross_domain_min": 0.28152791154963475,
+        "cross_domain_max": 0.40066969957968085,
+        "session": 0.24947824800344603,
+        "long_context_8k": 0.20707128696633303,
+        "mixed_online_mean": 0.38333358856355626,
+        "mixed_online_min": 0.38150427840344675,
+        "mixed_online_max": 0.386926915255102
+      },
+      {
+        "budget_gib": 8.0,
+        "homogeneous_holdout": 0.5677414308982494,
+        "same_domain_mean": 0.492707232694736,
+        "same_domain_min": 0.4050433608126757,
+        "same_domain_max": 0.5778117333394476,
+        "cross_domain_mean": 0.3671014877859738,
+        "cross_domain_min": 0.3062770451020965,
+        "cross_domain_max": 0.4279699475959503,
+        "session": 0.2734539894052427,
+        "long_context_8k": 0.22939556844139694,
+        "mixed_online_mean": 0.41340911710217565,
+        "mixed_online_min": 0.41161233469896974,
+        "mixed_online_max": 0.41700118566637645
+      },
+      {
+        "budget_gib": 12.0,
+        "homogeneous_holdout": 0.6928328755158111,
+        "same_domain_mean": 0.6001273956982425,
+        "same_domain_min": 0.5131063050318858,
+        "same_domain_max": 0.6881493911711984,
+        "cross_domain_mean": 0.46549822988255807,
+        "cross_domain_min": 0.39930845987991265,
+        "cross_domain_max": 0.5330339217350839,
+        "session": 0.3648691763625788,
+        "long_context_8k": 0.31343939336491633,
+        "mixed_online_mean": 0.5178017465300825,
+        "mixed_online_min": 0.5161405347064136,
+        "mixed_online_max": 0.5210371514798481
+      },
+      {
+        "budget_gib": 16.0,
+        "homogeneous_holdout": 0.7835770927516285,
+        "same_domain_mean": 0.6846931752048647,
+        "same_domain_min": 0.6027040028298368,
+        "same_domain_max": 0.7698918888157025,
+        "cross_domain_mean": 0.5473824518068903,
+        "cross_domain_min": 0.476773296851105,
+        "cross_domain_max": 0.6171280607749979,
+        "session": 0.44460718214385175,
+        "long_context_8k": 0.3932105053937353,
+        "mixed_online_mean": 0.6041016269424563,
+        "mixed_online_min": 0.6026383229697316,
+        "mixed_online_max": 0.6066553205926605
+      },
+      {
+        "budget_gib": 19.0,
+        "homogeneous_holdout": 0.836632120319628,
+        "same_domain_mean": 0.736829893376815,
+        "same_domain_min": 0.6617031558752599,
+        "same_domain_max": 0.8178895775019627,
+        "cross_domain_mean": 0.5994759313902719,
+        "cross_domain_min": 0.5299790445271437,
+        "cross_domain_max": 0.6706125232858209,
+        "session": 0.5005323891314513,
+        "long_context_8k": 0.45110924493681,
+        "mixed_online_mean": 0.6592265090304787,
+        "mixed_online_min": 0.6580633835842669,
+        "mixed_online_max": 0.6613110491599286
+      }
+    ],
+    "claim_boundary": "capacity/logical-lower-tier-traffic only"
+  },
+  "h3": {
+    "scope": "conditional_memory_service_layer",
+    "causality": {
+      "records_used": 6144,
+      "required_layers": 48,
+      "derived_pass": true,
+      "prefill_events": 192,
+      "decode_events": 5952,
+      "prefill_median_slack_ns": 213.5,
+      "prefill_p95_slack_ns": 284,
+      "prefill_max_slack_ns": 577,
+      "decode_median_slack_ns": 201.0,
+      "decode_p95_slack_ns": 237,
+      "decode_max_slack_ns": 6514,
+      "maximum_native_prefetch_slack_ns": 6514,
+      "fastest_one_expert_service_ns_lower": 2335891.381345927,
+      "slack_over_service": 0.002788657063431893,
+      "service_over_slack": 358.5955451866636
+    },
+    "canary": {
+      "stratum": "session",
+      "policy": "useful_object_lru",
+      "phase_filter": null,
+      "queue_depth": 32,
+      "verdict": "H3_MEMORY_GAP_SUPPORTED",
+      "global_penalty_lower": 0.4045828073257465,
+      "global_penalty_upper": 14.77715329456794,
+      "memory_gap_threshold": 0.1,
+      "causal_expert_prefetch_evidence_used": true,
+      "ple_perfect_prefetch_sensitivity_retained": true,
+      "causal_belady_pagecache_used": true,
+      "oracle_prefetch_global_penalty_bounds": [
+        0.0,
+        14.77715329456794
+      ],
+      "limiting_fields": {}
+    },
+    "fio_summary_count": 84,
+    "actual_lpddr_artifact_count": 84
+  },
+  "inventory_artifact_count": 187
+}
